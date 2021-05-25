@@ -1,0 +1,8 @@
+TODO:
+ - Make cpan repo and link to github:
+ http://blogs.perl.org/users/neilb/2014/08/put-your-cpan-distributions-on-github.html
+
+ - Find documentation for File::Basename.
+ - Optimize performance of methods all.
+      make single query.
+ - Move each class to a separate file.
