@@ -1,0 +1,7 @@
+# hidden files
+.*
+
+# Profiling
+nytprof*
+
+!.gitignore
