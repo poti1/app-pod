@@ -13,16 +13,17 @@ exit /b
 use v5.30;
 use strict;
 use warnings;
-use FindBin          qw/ $RealBin /;  
-use lib              "$RealBin/Pod-Query/lib";
+use FindBin           qw/ $RealBin /;  
+use lib               "$RealBin/Pod-Query/lib";
+use Module::Functions qw/ get_public_functions /;
 use Pod::Query;
-use File::Basename   qw/ basename        /;
-use List::Util       qw/ max             /;
+use File::Basename    qw/ basename        /;
+use List::Util        qw/ max             /;
 use Getopt::Long;
-use Mojo::Base       qw/ -strict -signatures /;
-use Mojo::ByteStream qw/ b /;
-use Mojo::Util       qw/ dumper /;
-use subs             qw/ r sayt /;
+use Mojo::Base        qw/ -strict -signatures /;
+use Mojo::ByteStream  qw/ b /;
+use Mojo::Util        qw/ dumper /;
+use subs              qw/ r sayt /;
 
 use constant DEBUG_POD => 0;
 
@@ -161,7 +162,6 @@ sub debug_pod($class) {
 
    say Pod::Query->new("ojo")->find_title;
 
-
    exit;
 }
 
@@ -247,7 +247,8 @@ sub show_events($class) {
 }
 
 sub show_methods($class,$opts) {
-   my @dirs = $class->dir;
+  #my @dirs = $class->dir;
+   my @dirs = sort {$a cmp $b} get_public_functions($class);
    my $pod  = Pod::Query->new($class);
    my $doc  = "";
 
@@ -307,6 +308,8 @@ sub sayt {
 
 
 
+=for REMOVE
+
 #--------------------------------------------
 #               UNIVERSAL
 #--------------------------------------------
@@ -337,3 +340,5 @@ sub dir{
 
    say join "\n  ", "\n$class", @keys;
 }
+
+=cut

@@ -17,8 +17,7 @@ Version 0.01
 =cut
 
 our $VERSION = '0.01';
-
-use constant MY_DEBUG => 0;
+our $DEBUG = 0;
 
 has [ qw/ _pos root / ];
 
@@ -68,7 +67,7 @@ Executed when a new pod element starts.
 =cut
 
 sub _handle_element_start($s,$tag,$attr) {
-   MY_DEBUG and say "TAG_START: $tag";
+   $DEBUG and say "TAG_START: $tag";
 
    if($s->_pos) {
       my $x = (length($tag)==1) ? [] : [$tag];  # Ignore single character tags
@@ -81,7 +80,7 @@ sub _handle_element_start($s,$tag,$attr) {
       $s->_pos([$x]);                           # Set current position
    }
 
-   MY_DEBUG and say "_pos: ", dumper $s->_pos;
+   $DEBUG and say "_pos: ", dumper $s->_pos;
 }
 
 =head2 _handle_text
@@ -91,11 +90,11 @@ Executed for each text element.
 =cut
 
 sub _handle_text($s,$text) {
-   MY_DEBUG and say "TEXT: $text";
+   $DEBUG and say "TEXT: $text";
 
    push $s->_pos->[0]->@*, $text;            # Add text
 
-   MY_DEBUG and say "_pos: ", dumper $s->_pos;
+   $DEBUG and say "_pos: ", dumper $s->_pos;
 }
 
 =head2 _handle_element_end
@@ -106,13 +105,13 @@ Executed when a pod element ends.
 
 sub _handle_element_end {
    my ($s,$tag) = @_;
-   MY_DEBUG and say "TAG_END: $tag";
+   $DEBUG and say "TAG_END: $tag";
    shift $s->_pos->@*;
 
    if( length $tag == 1 ){
       # Single character tags (like L<>) should be on the same level as text.
       $s->_pos->[0][-1] = join "", $s->_pos->[0][-1]->@*;
-      MY_DEBUG and say "TAG_END_TEXT: @{[ $s->_pos->[0][-1] ]}";
+      $DEBUG and say "TAG_END_TEXT: @{[ $s->_pos->[0][-1] ]}";
    }
    elsif($tag eq "Para"){
       # Should only have 2 elements: tag, entire text
@@ -121,7 +120,7 @@ sub _handle_element_end {
       $s->_pos->[0][-1]->@* = ($_tag, $text);
    }
 
-   MY_DEBUG and say "_pos: ", dumper $s->_pos;
+   $DEBUG and say "_pos: ", dumper $s->_pos;
 }
 
 =head1 SEE ALSO

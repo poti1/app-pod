@@ -23,21 +23,16 @@ Version 0.01
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION       = '0.01';
+our $DEBUG_TREE    = 0;
+our $DEBUG_FIND    = 0;
+our $DEBUG_INVERT  = 0;
+our $DEBUG_RENDER  = 0;
+our $MOCK_ROOT     = 0;
+our $MOCK_SECTIONS = 0;
 
-use constant {
-   DEBUG_TREE    => 0,
-   DEBUG_FIND    => 0,
-   DEBUG_INVERT  => 0,
-   DEBUG_RENDER  => 0,
-   MOCK_ROOT     => 0,
-   MOCK_SECTIONS => 0,
-};
 
-has [ qw/
-	pod_class
-	path
-	root
+has [ qw/ path lol
 	tree
 	title
 	events
@@ -120,11 +115,12 @@ sub new($class,$pod_class,$path_only=0) {
 
    return $s if $path_only;
 
-   my $root = MOCK_ROOT ? _mock_root() :
+   my $lol = $MOCK_ROOT ?
+	  _mock_root() :
       Pod::LOL->new->parse_file($s->path)->root;
 
-   $s->root($root);
-   $s->tree( _root_to_tree($root) );
+   $s->lol($lol);
+   $s->tree( _lol_to_tree($lol) );
 
    # say dumper $s;
    # exit;
@@ -248,14 +244,14 @@ sub _mock_root {
 }
 
 
-=head2 _root_to_tree
+=head2 _lol_to_tree
 
 Transforms a Pod::LOL object into a structured
 tree.
 
 =cut
 
-sub _root_to_tree($root) {
+sub _lol_to_tree($lol) {
    my ($is_in, $is_out);
    my $is_head = qr/ ^ head (\d) $ /x;
    my @main;
@@ -265,22 +261,22 @@ sub _root_to_tree($root) {
       return unless %$q;   # only if queue
       my $sub = $q->{sub}; # sub tags
       my $has = _has_head($sub);
-      $q->{sub} = _root_to_tree($sub) if $has;
+      $q->{sub} = _lol_to_tree($sub) if $has;
       push @main, $q;
       $q = {};
    };
 
-   DEBUG_TREE and
+   $DEBUG_TREE and
       say "\n_ROOT_TO_TREE()";
 
-   for($root->@*){
-      DEBUG_TREE and
+   for($lol->@*){
+      $DEBUG_TREE and
          say "\n_=", dumper $_;
 
       my $leaf = _make_leaf($_);
       my $tag  = $leaf->{tag};
 
-      DEBUG_TREE and
+      $DEBUG_TREE and
          say "\nleaf=", dumper $leaf;
 
       if(not $is_in or $tag =~ /$is_out/){
@@ -292,7 +288,7 @@ sub _root_to_tree($root) {
       else {
          $q->{sub} //= [];
          push $q->{sub}->@*, $leaf;
-         DEBUG_TREE and
+         $DEBUG_TREE and
             say "q: ", dumper $q;
       }
    }
@@ -312,7 +308,7 @@ Check if the node has sub heads.
 sub _has_head($list) {
    return unless ref $list;
 
-   DEBUG_TREE and
+   $DEBUG_TREE and
       say "\nlist=", dumper $list;
 
    my $is_head = qr/ ^ head (\d) $ /x;
@@ -519,7 +515,7 @@ sub find($s,@find_sections) {
     # #  keep_all => 1,
     #    nth      => 1,
     # },
-   ) if MOCK_SECTIONS;
+   ) if $MOCK_SECTIONS;
 
    _check_sections(\@find_sections);
    _set_section_defaults(\@find_sections);
@@ -666,7 +662,7 @@ Lower level find command.
 =cut
 
 sub _find($need,@groups) {
-   if(DEBUG_FIND){
+   if($DEBUG_FIND){
       say "\n_FIND()";
       say "need:   ", dumper $need;
       say "groups: ", dumper \@groups;
@@ -689,13 +685,13 @@ sub _find($need,@groups) {
       $prev = [@$prev]; # shallow copy
       my $locked_prev = 0;
       my @q;
-      if(DEBUG_FIND){
+      if($DEBUG_FIND){
          say "\nprev: ", dumper $prev;
          say "group:  ", dumper $group;
       }
 
       while (my $try = shift @tries) {
-         DEBUG_FIND and
+         $DEBUG_FIND and
             say "\nTrying: try=", dumper $try;
 
          my $_tag    = $try->{tag};
@@ -704,12 +700,12 @@ sub _find($need,@groups) {
          my $_keep   = $try->{keep};
 
          if (defined $_keep){
-            DEBUG_FIND and
+            $DEBUG_FIND and
                say "ENFORCING: keep";
          }
          elsif($_tag =~ /$tag/ and
               $_text =~ /$text/){
-            DEBUG_FIND and
+            $DEBUG_FIND and
                say "Found:  tag=$_tag, text=$_text";
             push @q, {
                %$try,
@@ -719,7 +715,7 @@ sub _find($need,@groups) {
 
             # Specific match (positive)
             if($nth_p and @q > $nth_p){
-               DEBUG_FIND and
+               $DEBUG_FIND and
                   say "ENFORCING: nth=$nth";
                @found = $q[$nth_p];
                last GROUP;
@@ -727,7 +723,7 @@ sub _find($need,@groups) {
 
             # Specific group match (positive)
             elsif($nth_group_p and @q > $nth_group_p){
-               DEBUG_FIND and
+               $DEBUG_FIND and
                   say "ENFORCING: nth_group=$nth_group";
                @q = $q[$nth_group_p];
                last;
@@ -735,7 +731,7 @@ sub _find($need,@groups) {
          }
 
          if($_sub and not @q){
-            DEBUG_FIND and
+            $DEBUG_FIND and
                say "Got sub and nothing yet in queue";
             unshift @tries, @$_sub;
             if($_keep and not $locked_prev++){
@@ -743,17 +739,17 @@ sub _find($need,@groups) {
                   tag  => $_tag,
                   text => [$_text],
                };
-               DEBUG_FIND and
+               $DEBUG_FIND and
                   say "prev changed: ", dumper $prev;
             }
-            DEBUG_FIND and
+            $DEBUG_FIND and
                say "locked_prev: $locked_prev";
          }
       }
 
       # Specific group match (negative)
       if($nth_group_n and @q >= abs $nth_group_n){
-         DEBUG_FIND and
+         $DEBUG_FIND and
             say "ENFORCING: nth_group_n=$nth_group_n";
          @q = $q[$nth_group_n];
       }
@@ -763,12 +759,12 @@ sub _find($need,@groups) {
 
    # Specific match (negative)
    if($nth_n and @found >= abs $nth_n){
-      DEBUG_FIND and
+      $DEBUG_FIND and
          say "ENFORCING: nth=$nth";
       @found = $found[$nth_n];
    }
 
-   DEBUG_FIND and
+   $DEBUG_FIND and
       say "found: ", dumper \@found;
    @found;
 }
@@ -816,7 +812,7 @@ the parent in its place.
 =cut
 
 sub _invert(@groups) {
-   if(DEBUG_INVERT){
+   if($DEBUG_INVERT){
       say "\n_INVERT()";
       say "groups: ", dumper \@groups;
    }
@@ -828,7 +824,7 @@ sub _invert(@groups) {
       push @tree, {
          %$group{qw/tag text sub is_over/}
       };
-      if(DEBUG_INVERT){
+      if($DEBUG_INVERT){
          say "\nInverting: group=" , dumper $group;
          say "tree: ", dumper \@tree;
       }
@@ -836,13 +832,13 @@ sub _invert(@groups) {
       my $prevs = $group->{prev} // [];
       for my $prev (@$prevs){
          my $prev_node = $navi{$prev};
-         if(DEBUG_INVERT){
+         if($DEBUG_INVERT){
             say "prev: ",      dumper $prev;
             say "prev_node: ", dumper $prev_node;
          }
          if($prev_node){
             push @$prev_node, pop @tree;
-            if(DEBUG_INVERT){
+            if($DEBUG_INVERT){
                say "FOUND: prev_node=",
                   dumper $prev_node;
             }
@@ -851,14 +847,14 @@ sub _invert(@groups) {
          else{
             $prev_node = $navi{$prev} = [$tree[-1]];
             $tree[-1] = {%$prev, sub => $prev_node};
-            if(DEBUG_INVERT){
+            if($DEBUG_INVERT){
                say "NEW: prev_node=",
                   dumper $prev_node;
             }
          }
       }
 
-      DEBUG_INVERT and
+      $DEBUG_INVERT and
          say "tree end: ", dumper \@tree;
    }
 
@@ -874,7 +870,7 @@ or a string depending on context.
 =cut
 
 sub _render($kept_all,@tree) {
-   if(DEBUG_RENDER){
+   if($DEBUG_RENDER){
       say "\n_RENDER()";
       say "tree: ", dumper \@tree;
       say "kept_all: ", dumper $kept_all;
@@ -890,11 +886,11 @@ sub _render($kept_all,@tree) {
 
    for my $group (@tree) {
       my @tries = ($group);
-      DEBUG_RENDER and
+      $DEBUG_RENDER and
          say "\ngroup:  ", dumper $group;
 
       while (my $try = shift @tries) {
-         DEBUG_RENDER and
+         $DEBUG_RENDER and
             say "\nTrying: try=", dumper $try;
 
          my $_tag  = $try->{tag};
@@ -910,7 +906,7 @@ sub _render($kept_all,@tree) {
          elsif($kept_all){
             $_text .= ":" if ++$n == 1;
             if($_tag eq "Para"){
-               DEBUG_RENDER and
+               $DEBUG_RENDER and
                   say "USING FORMATTER";
                $_text = $formatter->reformat($_text);
             }
@@ -921,7 +917,7 @@ sub _render($kept_all,@tree) {
 
          if($_sub){
             unshift @tries, @$_sub;
-            if(DEBUG_RENDER){
+            if($DEBUG_RENDER){
                say "Got subs";
                say "tries:  ", dumper \@tries;
             }
@@ -931,7 +927,7 @@ sub _render($kept_all,@tree) {
 
    }
 
-   DEBUG_RENDER and
+   $DEBUG_RENDER and
       say "lines: ", dumper \@lines;
 
    return @lines if wantarray;
@@ -946,7 +942,7 @@ Specifically called for rendering "over" elements.
 =cut
 
 sub _render_over($list,$kept_all) {
-   if(DEBUG_RENDER){
+   if($DEBUG_RENDER){
       say "\n_RENDER_OVER()";
       say "list=", dumper $list;
    }
@@ -970,13 +966,13 @@ sub _render_over($list,$kept_all) {
    for my $items (@$list){
       my $n;
       for(@$items){
-         DEBUG_RENDER and
+         $DEBUG_RENDER and
             say "over-item=", dumper $_;
 
          my($tag,$text) = @$_;
 
          if($kept_all){
-            DEBUG_RENDER and
+            $DEBUG_RENDER and
                say "USING FORMATTER";
             $text .= ":" if ++$n == 1;
             if($tag eq "item-text"){
@@ -995,7 +991,7 @@ sub _render_over($list,$kept_all) {
 
    my $new_text = join "\n", @txt;
 
-   DEBUG_RENDER and
+   $DEBUG_RENDER and
       say "Changed over-text to: $new_text";
 
    $new_text;
