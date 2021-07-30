@@ -14,7 +14,7 @@ use v5.30;
 use strict;
 use warnings;
 use FindBin           qw/ $RealBin /;  
-use lib               "$RealBin/Pod-Query/lib";
+use lib               ".", "$RealBin/Pod-Query/lib";
 use Module::Functions qw/ get_public_functions /;
 use Pod::Query;
 use File::Basename    qw/ basename        /;
