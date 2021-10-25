@@ -144,7 +144,9 @@ sub show_help {
 
 sub import_class($class) {
    # Since ojo imports its DSL into the current package
-   eval "package $class; use $class";
+   eval {
+      eval "package $class; use $class";
+   };
 
    my $import_ok = do{
       if($@){ warn $@; 0 }
