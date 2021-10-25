@@ -94,8 +94,11 @@ sub get_opts {
    $opts;
 }
 sub show_help {
+   my $YELLOW  = "\e[33m";
+   my $RESTORE = "\e[0m";
    my $self = basename($0);
    $self =~ s/ \.\w+ $ //x;
+   $self = "$YELLOW$self$RESTORE";
 
    my @all = map {
          my ($opt,$desc) = @$_;
