@@ -646,8 +646,8 @@ and outside the current head.
 
 sub _get_heads_regex($num) {
    # Make regex for inner and outer =head tags
-   my $inner  = join "", grep {$_ >  $num} 1..4;
-   my $outer  = join "", grep {$_ <= $num} 1..4;
+   my $inner  = join "", grep {$_ >  $num} 0..5;
+   my $outer  = join "", grep {$_ <= $num} 0..5;
    my $is_in  = qr/ ^ head ([$inner]) $ /x;
    my $is_out = qr/ ^ head ([$outer]) $ /x;
 
