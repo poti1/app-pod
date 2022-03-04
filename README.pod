@@ -2,26 +2,26 @@
 
 =encoding utf8
 
-                      __
-     ____  ____  ____/ /
-    / __ \/ __ \/ __  /
-   / /_/ / /_/ / /_/ /
-  / .___/\____/\__,_/
- /_/
+ #                      __   __              __
+ #     ____  ____  ____/ /  / /_____  ____  / /
+ #    / __ \/ __ \/ __  /  / __/ __ \/ __ \/ /
+ #   / /_/ / /_/ / /_/ /  / /_/ /_/ / /_/ / /
+ #  / .___/\____/\__,_/   \__/\____/\____/_/
+ # /_/
 
 =head1 Summary
 
- Quickly show available class methods and documentation.
+Quickly show available class methods and documentation.
 
 =head1 Installation:
 
- Install cpanm.
+Install cpanm.
 
-   % cpan App::cpanminus
+ % cpan App::cpanminus
 
- Install module dependencies.
+Install module dependencies.
 
-   % cpanm --installdeps .
+ % cpanm --installdeps .
 
 =head1 Usage:
 
@@ -31,32 +31,32 @@
 
 =head1 Examples:
 
- View summary of Mojo::UserAgent:
+View summary of Mojo::UserAgent:
 
-   % pod Mojo::UserAgent
+ % pod Mojo::UserAgent
 
- View summary of a specific method.
+View summary of a specific method.
 
-   % pod Mojo::UserAgent get
+ % pod Mojo::UserAgent get
 
- Edit the module
+Edit the module
 
-   % pod Mojo::UserAgent -e
+ % pod Mojo::UserAgent -e
 
- Edit the module and jump to the specific method definition right away.
- (Press "n" to next match if neeeded).
+Edit the module and jump to the specific method definition right away.
+(Press "n" to next match if neeeded).
 
-   % pod Mojo::UserAgent get -eo
+ % pod Mojo::UserAgent get -eo
 
- Run perldoc on the module (for convience)
+Run perldoc on the module (for convience)
 
-   % pod Mojo::UserAgent -d
+ % pod Mojo::UserAgent -d
 
- List all available methods.
- If no methods are found normally, then this will automatically be enabled.
- (pod was made to work with Mojo pod styling).
+List all available methods.
+If no methods are found normally, then this will automatically be enabled.
+(pod was made to work with Mojo pod styling).
 
-   % pod Mojo::UserAgent -a
+ % pod Mojo::UserAgent -a
 
 =head2 Copyright and License
 
