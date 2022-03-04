@@ -57,3 +57,16 @@
 
    % pod Mojo::UserAgent -a
 
+=head2 Copyright and License
+
+You should have received a I<LICENSE> file, but the license is also noted
+in the module files. About the only thing you can't do is pretend that
+you wrote code that you didn't.
+
+=head2 Author
+
+((enjoy))
+
+Tim Potapov, tim.potapov[AT]gmail.com
+
+=cut
