@@ -118,7 +118,7 @@ sub show_help {
 
    say <<~HELP;
 
-   Shows valid class methods and documentation
+   Shows available class methods and documentation
 
    Syntax:
       $self module_name [method_name]
