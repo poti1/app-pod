@@ -2,12 +2,12 @@
 
 =encoding utf8
 
- #                      __   __              __
- #     ____  ____  ____/ /  / /_____  ____  / /
- #    / __ \/ __ \/ __  /  / __/ __ \/ __ \/ /
- #   / /_/ / /_/ / /_/ /  / /_/ /_/ / /_/ / /
- #  / .___/\____/\__,_/   \__/\____/\____/_/
- # /_/
+                      __   __              __
+     ____  ____  ____/ /  / /_____  ____  / /
+    / __ \/ __ \/ __  /  / __/ __ \/ __ \/ /
+   / /_/ / /_/ / /_/ /  / /_/ /_/ / /_/ / /
+  / .___/\____/\__,_/   \__/\____/\____/_/
+ /_/
 
 =head1 Summary
 
@@ -58,16 +58,16 @@ If no methods are found normally, then this will automatically be enabled.
 
  % pod Mojo::UserAgent -a
 
-=head2 Copyright and License
+=head1 Copyright and License
 
 You should have received a I<LICENSE> file, but the license is also noted
 in the module files. About the only thing you can't do is pretend that
 you wrote code that you didn't.
 
-=head2 Author
+=head1 Author
 
 ((enjoy))
 
-Tim Potapov, tim.potapov[AT]
+Tim Potapov, tim.potapov[AT]gmail.com
 
 =cut
