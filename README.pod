@@ -23,6 +23,10 @@ Install module dependencies.
 
  % cpanm --installdeps .
 
+Install tab completion.
+
+ % source bashrc_pod
+
 =head1 Usage:
 
  # Show help.

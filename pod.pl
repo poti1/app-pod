@@ -361,7 +361,13 @@ sub define_last_run_cache_file {
 
 sub save_last_class_and_options ( $save ) {
    my $file = define_last_run_cache_file();
-   path( $file )->spurt( j $save );
+   my $path = path( $file );
+
+   if ( not -e $path->dirname ) {
+      mkdir $path->dirname or die $!;
+   }
+
+   $path->spurt( j $save );
 }
 
 sub get_last_class_and_options {
