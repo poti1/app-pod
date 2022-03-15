@@ -1,29 +1,21 @@
-@REM='
-@echo off
-perl -x -S -l %0 %*
-exit /b
-';
-
-
-
-
-
-#!perl
+#!/usr/bin/env perl
 
 use v5.30;
 use strict;
 use warnings;
-use FindBin           qw/ $RealBin /;  
-use lib               ".", "$RealBin/Pod-Query/lib";
+use FindBin qw/ $RealBin /;
+use lib ".", "$RealBin/Pod-Query/lib";
 use Module::Functions qw/ get_public_functions /;
 use Pod::Query;
-use File::Basename    qw/ basename        /;
-use List::Util        qw/ max             /;
+use File::Basename qw/ basename        /;
+use List::Util qw/ max             /;
 use Getopt::Long;
-use Mojo::Base        qw/ -strict -signatures /;
-use Mojo::ByteStream  qw/ b /;
-use Mojo::Util        qw/ dumper /;
-use subs              qw/ r sayt /;
+use Mojo::Base qw/ -strict -signatures /;
+use Mojo::ByteStream qw/ b /;
+use Mojo::File qw/ path/;
+use Mojo::JSON qw/ j /;
+use Mojo::Util qw/ dumper /;
+use subs qw/ r sayt /;
 
 use constant DEBUG_POD => 0;
 
@@ -33,31 +25,38 @@ use constant DEBUG_POD => 0;
 #--------------------------------------------
 
 my $opts = get_opts();
+my $NULL_FH;
 
-show_help() if not @ARGV or $opts->{help};
+list_tool_options( $opts ) if $opts->{list_tool_options};
+show_help()                if not @ARGV or $opts->{help};
 
-my ($class,@args) = @ARGV;
-my ($method)      = @args;
+my ( $class, @args ) = @ARGV;
+my ( $method ) = @args;
+list_class_options( $class ) if $opts->{list_class_options};
 
-import_class($class) or exit;
+import_class( $class ) or exit;
 
-debug_pod($class) if DEBUG_POD;
+debug_pod( $class ) if DEBUG_POD;
 
-if($opts->{edit}){
-   edit_file($class,$method);
+if ( $opts->{edit} ) {
+   edit_file( $class, $method );
 }
-elsif($opts->{doc}){
-   doc_class($class,@args);
+elsif ( $opts->{doc} ) {
+   doc_class( $class, @args );
 }
 
-print_header($class);
-if($method){
-   show_method_doc($class,$method);
+print_header( $class );
+if ( $method ) {
+   show_method_doc( $class, $method );
 }
-else{
-   show_inheritance($class);
-   show_events($class);
-   show_methods($class,$opts);
+else {
+   show_inheritance( $class );
+   my $save = {
+      class   => $class,
+      options => [ show_events( $class ), show_methods( $class, $opts ), ],
+   };
+   save_last_class_and_options( $save );
+   list_class_options( $class ) if $opts->{list_class_options};
 }
 
 
@@ -68,53 +67,85 @@ else{
 sub define_spec {
    <<~SPEC;
 
-      all|a  - Show all available class functions.
-      doc|d  - View the class documentation.
-      edit|e - Edit the source code.
-      help|h - Show this help section.
+      all|a              - Show all available class functions.
+      doc|d              - View the class documentation.
+      edit|e             - Edit the source code.
+      help|h             - Show this help section.
+      list_tool_options  - List available options to this tool.
+      list_class_options - List available options to a class (events,show_methods).
 
    SPEC
 }
+
 sub _build_spec_list {
-   map  { [split / \s+ - \s+ /x, $_, 2] }       # Split into: opts - description
-   map  { b($_)->trim }                         # Trim leading/trailing spaces
-   grep { not /^ \s* $/x }                      # Blank lines
-   split "\n",
-   define_spec();
+   map    { [ split / \s+ - \s+ /x, $_, 2 ] }   # Split into: opts - description
+     map  { b( $_ )->trim }                     # Trim leading/trailing spaces
+     grep { not /^ \s* $/x }                    # Blank lines
+     split "\n", define_spec();
 }
+
 sub get_spec_list {
-   map { $_->[0] }
-   _build_spec_list();
+   map { $_->[0] } _build_spec_list();
 }
+
+sub get_optios_list {
+   sort
+     map { length( $_ ) == 1 ? "-$_" : "--$_"; }
+     map { split /\|/ } get_spec_list();
+}
+
 sub get_opts {
    my $opts = {};
 
-   GetOptions($opts, get_spec_list) or die $!;
+   GetOptions( $opts, get_spec_list ) or die $!;
 
    $opts;
 }
+
+sub list_tool_options ( $opts ) {
+   say for get_optios_list();
+   exit unless $opts->{list_class_options};
+}
+
+=head2 list_class_options
+
+   Use last saved data if available since this is the typical usage.
+
+=cut
+
+sub list_class_options ( $class ) {
+   my $last_data = get_last_class_and_options();
+   if ( $last_data->{class} eq $class ) {
+      select STDOUT;
+      say for $last_data->{options}->@*;
+      exit;
+   }
+
+   # Ignore the output.
+   open $NULL_FH, '>', '/dev/null' or die $!;
+   select $NULL_FH;
+}
+
 sub show_help {
    my $YELLOW  = "\e[33m";
    my $RESTORE = "\e[0m";
-   my $self = basename($0);
+   my $self    = basename( $0 );
    $self =~ s/ \.\w+ $ //x;
    $self = "$YELLOW$self$RESTORE";
 
    my @all = map {
-         my ($opt,$desc) = @$_;
-         $opt =~ s/\|/, /g;
-         $opt =~ s/ (?=\b\w{2}) /--/gx; # Long opts
-         $opt =~ s/ (?=\b\w\b)  /-/gx;  # Short opts
-         [$opt,$desc,length $opt];
-      }
-      _build_spec_list();
+      my ( $opt, $desc ) = @$_;
+      $opt =~ s/\|/, /g;
+      $opt =~ s/ (?=\b\w{2}) /--/gx;    # Long opts
+      $opt =~ s/ (?=\b\w\b)  /-/gx;     # Short opts
+      [ $opt, $desc, length $opt ];
+   } _build_spec_list();
 
    my $max = max map { $_->[2] } @all;
 
    my $options =
-      join "\n   ",
-      map { sprintf "%-${max}s - %s", @$_[0,1] }
-      @all;
+     join "\n   ",
+     map { sprintf "%-${max}s - %s", @$_[ 0, 1 ] } @all;
 
    say <<~HELP;
 
@@ -145,36 +176,35 @@ sub show_help {
    exit;
 }
 
-sub import_class($class) {
-   # Since ojo imports its DSL into the current package
-   eval {
-      eval "package $class; use $class";
-   };
+sub import_class ( $class ) {
 
-   my $import_ok = do{
-      if($@){ warn $@; 0 }
-      else  {          1 }
+   # Since ojo imports its DSL into the current package
+   eval { eval "package $class; use $class"; };
+
+   my $import_ok = do {
+      if ( $@ ) { warn $@; 0 }
+      else      { 1 }
    };
 
    $import_ok;
 }
 
-sub debug_pod($class) {
-   my $pod = Pod::Query->new($class);
-   my $doc = $pod->find_method_summary($class);
+sub debug_pod ( $class ) {
+   my $pod = Pod::Query->new( $class );
+   my $doc = $pod->find_method_summary( $class );
    say dumper $pod;
    say $doc;
 
-   say Pod::Query->new("ojo")->find_title;
+   say Pod::Query->new( "ojo" )->find_title;
 
    exit;
 }
 
-sub edit_file($class,$method) {
-   my $path = Pod::Query->new($class, "path")->path;
+sub edit_file ( $class, $method ) {
+   my $path = Pod::Query->new( $class, "path" )->path;
    my $cmd  = "vim $path";
 
-   if($method){
+   if ( $method ) {
       my $m      = "<\\zs$method\\ze>";
       my $sub    = "<sub $m";
       my $monkey = "<monkey_patch>.+$m";
@@ -188,15 +218,16 @@ sub edit_file($class,$method) {
    # exit;
    exec $cmd;
 }
-sub doc_class($class,@args) {
-   my $cmd  = "perldoc @args $class";
+
+sub doc_class ( $class, @args ) {
+   my $cmd = "perldoc @args $class";
 
    # say $cmd;
    exec $cmd;
 }
 
-sub print_header($class) {
-   my $pod     = Pod::Query->new($class);
+sub print_header ( $class ) {
+   my $pod     = Pod::Query->new( $class );
    my $version = $class->VERSION;
 
    say "";
@@ -208,20 +239,20 @@ sub print_header($class) {
    say "";
 }
 
-sub show_method_doc($class,$method) {
-   say scalar Pod::Query->new($class)
-      ->find_method($method);
+sub show_method_doc ( $class, $method ) {
+   say scalar Pod::Query->new( $class )
+     ->find_method( $method );
 }
 
-sub show_inheritance(@classes) {
+sub show_inheritance ( @classes ) {
    my @tree;
    my %seen;
    no strict 'refs';
 
-   while(my $class = shift @classes){
-      next if $seen{class};   # Already saw it
-      $seen{$class}++;        # Otherwise, now we did
-      push @tree, $class;     # Add to tree
+   while ( my $class = shift @classes ) {
+      next if $seen{class};    # Already saw it
+      $seen{$class}++;         # Otherwise, now we did
+      push @tree, $class;      # Add to tree
 
       eval "require $class";
       my @isa = @{"${class}::ISA"};
@@ -234,39 +265,47 @@ sub show_inheritance(@classes) {
    say "";
 }
 
-sub show_events($class) {
-   my %events = Pod::Query->new($class)->find_events;
+sub show_events ( $class ) {
+   my %events = Pod::Query->new( $class )->find_events;
    my @names  = sort keys %events;
    my $size   = @names;
    return unless $size;
 
+   my @save;
    my $len    = max map { length } @names;
    my $format = " %-${len}s - %s";
 
    say "Events ($size):";
-   for(@names){
+   for ( @names ) {
       sayt sprintf $format, $_, $events{$_};
+      push @save, $_;
    }
 
    say "";
+
+   @save;
 }
 
-sub show_methods($class,$opts) {
-  #my @dirs = $class->dir;
-   my @dirs = sort {$a cmp $b} get_public_functions($class);
-   my $pod  = Pod::Query->new($class);
+sub show_methods ( $class, $opts ) {
+
+   #my @dirs = $class->dir;
+   my @dirs = sort { $a cmp $b } get_public_functions( $class );
+   my $pod  = Pod::Query->new( $class );
    my $doc  = "";
 
    my @meths_all = map {
-      my $doc = $pod->find_method_summary($_);
-      [$_,$doc];
+      my $doc = $pod->find_method_summary( $_ );
+      [ $_, $doc ];
    } @dirs;
 
    # Documented methods
    my @meths_doc = grep { $_->[1] } @meths_all;
+   my @save =
+     grep { / ^ [\w_-]+ $ /x }
+     map { $_->[0] } @meths_all;
 
    # If we have methods, but none are documented
-   if(@meths_all and not @meths_doc){
+   if ( @meths_all and not @meths_doc ) {
       say "Warning: All methods are undocumented! (reverting to --all)\n";
       $opts->{all} = 1;
    }
@@ -279,39 +318,58 @@ sub show_methods($class,$opts) {
    my $format = " %-${max}s%s";
    say "Methods ($size):";
 
-   for my $list (@meths){
-      my ($method,$doc_raw) = @$list;
+   for my $list ( @meths ) {
+      my ( $method, $doc_raw ) = @$list;
       my $doc = $doc_raw ? " - $doc_raw" : "";
       sayt sprintf $format, $method, $doc;
    }
 
    say "\nUse --all (or -a) to see all methods."
-      unless $opts->{all};
+     unless $opts->{all};
    say "";
+
+   @save;
 }
 
-sub _trim($line) {
+sub _trim ( $line ) {
    my $term_width  = Pod::Query::get_term_width();
    my $replacement = " ...";
-   my $width       = $term_width - length($replacement) - 1;   # "-1" for newline
+   my $width = $term_width - length( $replacement ) - 1;    # "-1" for newline
 
    # Trim to terminal width
-   if(length($line) >= $term_width){                           # "=" also for newline
-      $line = substr($line, 0, $width) . $replacement;
+   if ( length( $line ) >= $term_width ) {    # "=" also for newline
+      $line = substr( $line, 0, $width ) . $replacement;
    }
 
    $line;
 }
+
 sub r {
 
    say dumper \@_;
 }
+
 sub sayt {
 
-   say _trim(@_);
+   say _trim( @_ );
 }
 
+sub define_last_run_cache_file {
+   "$ENV{HOME}/.cache/my_pod_last_run.cache";
 
+}
+
+sub save_last_class_and_options ( $save ) {
+   my $file = define_last_run_cache_file();
+   path( $file )->spurt( j $save );
+}
+
+sub get_last_class_and_options {
+   my $file = define_last_run_cache_file();
+   return { class => '' } unless -e $file;
+
+   j path( $file )->slurp;
+}
 
 =for REMOVE
 

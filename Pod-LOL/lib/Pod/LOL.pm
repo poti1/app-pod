@@ -17,9 +17,9 @@ Version 0.01
 =cut
 
 our $VERSION = '0.01';
-our $DEBUG = 0;
+our $DEBUG   = 0;
 
-has [ qw/ _pos root / ];
+has [qw/ _pos root /];
 
 =head1 SYNOPSIS
 
@@ -66,18 +66,19 @@ Executed when a new pod element starts.
 
 =cut
 
-sub _handle_element_start($s,$tag,$attr) {
+sub _handle_element_start ( $s, $tag, $attr ) {
    $DEBUG and say "TAG_START: $tag";
 
-   if($s->_pos) {
-      my $x = (length($tag)==1) ? [] : [$tag];  # Ignore single character tags
-      push $s->_pos->[0]->@*, $x;               # Append to root
-      unshift $s->_pos->@*, $x;                 # Set as current position
+   if ( $s->_pos ) {
+      my $x =
+        ( length( $tag ) == 1 ) ? [] : [$tag];    # Ignore single character tags
+      push $s->_pos->[0]->@*, $x;                 # Append to root
+      unshift $s->_pos->@*, $x;                   # Set as current position
    }
    else {
       my $x = [];
-      $s->root($x);                             # Set root
-      $s->_pos([$x]);                           # Set current position
+      $s->root( $x );                             # Set root
+      $s->_pos( [$x] );                           # Set current position
    }
 
    $DEBUG and say "_pos: ", dumper $s->_pos;
@@ -89,10 +90,10 @@ Executed for each text element.
 
 =cut
 
-sub _handle_text($s,$text) {
+sub _handle_text ( $s, $text ) {
    $DEBUG and say "TEXT: $text";
 
-   push $s->_pos->[0]->@*, $text;            # Add text
+   push $s->_pos->[0]->@*, $text;    # Add text
 
    $DEBUG and say "_pos: ", dumper $s->_pos;
 }
@@ -104,20 +105,22 @@ Executed when a pod element ends.
 =cut
 
 sub _handle_element_end {
-   my ($s,$tag) = @_;
+   my ( $s, $tag ) = @_;
    $DEBUG and say "TAG_END: $tag";
    shift $s->_pos->@*;
 
-   if( length $tag == 1 ){
+   if ( length $tag == 1 ) {
+
       # Single character tags (like L<>) should be on the same level as text.
       $s->_pos->[0][-1] = join "", $s->_pos->[0][-1]->@*;
       $DEBUG and say "TAG_END_TEXT: @{[ $s->_pos->[0][-1] ]}";
    }
-   elsif($tag eq "Para"){
+   elsif ( $tag eq "Para" ) {
+
       # Should only have 2 elements: tag, entire text
-      my ($_tag, @text) = $s->_pos->[0][-1]->@*;
+      my ( $_tag, @text ) = $s->_pos->[0][-1]->@*;
       my $text = join "", @text;
-      $s->_pos->[0][-1]->@* = ($_tag, $text);
+      $s->_pos->[0][-1]->@* = ( $_tag, $text );
    }
 
    $DEBUG and say "_pos: ", dumper $s->_pos;
@@ -176,4 +179,4 @@ This is free software, licensed under:
 
 =cut
 
-1; # End of Pod::LOL
+1;    # End of Pod::LOL
