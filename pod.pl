@@ -72,7 +72,7 @@ sub define_spec {
       edit|e             - Edit the source code.
       help|h             - Show this help section.
       list_tool_options  - List available options to this tool.
-      list_class_options - List available options to a class (events,show_methods).
+      list_class_options - List available options to a class (events,methods).
 
    SPEC
 }
