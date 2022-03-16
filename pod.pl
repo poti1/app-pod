@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use FindBin qw/ $RealBin /;
 use lib ".", "$RealBin/Pod-Query/lib";
-use Module::Functions qw/ get_public_functions /;
+use Module::Functions qw/ get_public_functions get_full_functions /;
 use Pod::Query;
 use File::Basename qw/ basename        /;
 use List::Util qw/ max             /;
@@ -289,7 +289,7 @@ sub show_events ( $class ) {
 sub show_methods ( $class, $opts ) {
 
    #my @dirs = $class->dir;
-   my @dirs = sort { $a cmp $b } get_public_functions( $class );
+   my @dirs = sort { $a cmp $b } get_full_functions( $class );
    my $pod  = Pod::Query->new( $class );
    my $doc  = "";
 
