@@ -117,10 +117,18 @@ sub new ( $class, $pod_class, $path_only = 0 ) {
 
    return $s if $path_only;
 
-   my $lol =
-     $MOCK_ROOT
-     ? _mock_root()
-     : Pod::LOL->new->parse_file( $s->path )->root;
+   my $lol = do {
+      if ( $MOCK_ROOT ) {
+         _mock_root();
+      }
+      else {
+         my $parser = Pod::LOL->new;
+         $parser->accept_targets( '*' );
+         $parser->parse_file( $s->path )->root;
+      }
+   };
+
+   $lol = _flatten_for_tags( $lol );
 
    $s->lol( $lol );
    $s->tree( _lol_to_tree( $lol ) );
@@ -192,6 +200,26 @@ sub _mock_root {
    ]
 }
 
+=head2 _flatten_for_tags
+
+Removes for tags from the lol and flattens
+out the inner tags to be on the same level as the for
+tag was.
+
+=cut
+
+sub _flatten_for_tags ( $lol ) {
+   my @flat;
+
+   for ( @$lol ) {
+      my ( $tag, @data ) = @$_;
+      $tag //= '';
+
+      push @flat, ( $tag eq "for" ) ? @data : $_;
+   }
+
+   \@flat;
+}
 
 =head2 _lol_to_tree
 
@@ -369,10 +397,11 @@ Extracts the complete method information.
 =cut
 
 sub find_method ( $s, $method ) {
+   my $FunctionCall = qr/ (?: \( [^()]* \) )? /x;
    $s->find(
       {
          tag       => qr/ ^ head \d $ /x,
-         text      => quotemeta( $method ),
+         text      => quotemeta( $method ) . $FunctionCall,
          nth_group => 0,
          keep_all  => 1,
       },
@@ -387,14 +416,15 @@ Extracts the method summary.
 =cut
 
 sub find_method_summary ( $s, $method ) {
+   my $FunctionCall = qr/ (?: \( [^()]* \) )? /x;
    $s->find(
       {
          tag  => qr/ ^ head \d $ /x,
-         text => quotemeta( $method ),
+         text => quotemeta( $method ) . $FunctionCall,
          nth  => 0,
       },
       {
-         tag => "Para",
+         tag => qr/ (?: Data | Para ) /x,
          nth => 0,
       },
    );
@@ -434,36 +464,12 @@ Generic extraction command
 
 sub find ( $s, @find_sections ) {
    @find_sections = (
-      {
-         tag => "head1",
-
-         #     text     => "MAIN",
-         #     keep     => 1,
-         #     keep_all => 1,
-      },
-      {
-         tag => "head2",
-
-         #   text     => "SUB1",
-         #   keep     => 1,
-         #   keep_all => 1,
-         nth => 1,
-      },
-      {
-         tag => "over-text",
-
-         #   text     => "SUB1",
-         #   keep     => 1,
-         keep_all => 1,
-
-         #   nth      => 1,
-      },
 
       # {
       #    tag      => "Para",
-      # #  text     => "SKIP1",
+      #    text     => "SKIP1",
       #    keep     => 1,
-      # #  keep_all => 1,
+      #    keep_all => 1,
       #    nth      => 1,
       # },
    ) if $MOCK_SECTIONS;
