@@ -6,6 +6,7 @@ use warnings;
 use FindBin qw/ $RealBin /;
 use lib ".", "$RealBin/Pod-Query/lib";
 use Module::Functions qw/ get_public_functions get_full_functions /;
+use Module::CoreList;
 use Pod::Query;
 use File::Basename qw/ basename        /;
 use List::Util qw/ max             /;
@@ -227,13 +228,15 @@ sub doc_class ( $class, @args ) {
 }
 
 sub print_header ( $class ) {
-   my $pod     = Pod::Query->new( $class );
-   my $version = $class->VERSION;
+   my $pod           = Pod::Query->new( $class );
+   my $version       = $class->VERSION;
+   my $first_release = Module::CoreList->first_release( $class );
 
    say "";
    sayt "# package: " . $class;
    sayt "# path:    " . $pod->path;
-   sayt "# version: " . $version if $version;
+   sayt "# version: " . $version                    if $version;
+   sayt "# release: perl version " . $first_release if $first_release;
    say "";
    sayt $pod->find_title;
    say "";
