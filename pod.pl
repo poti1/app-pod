@@ -288,6 +288,7 @@ sub show_inheritance ( @classes ) {
    }
 
    my $size = @tree;
+   return if $size <= 1;
    say _neon( "Inheritance ($size):" );
    say _grey( " $_" ) for @tree;
    say "";
