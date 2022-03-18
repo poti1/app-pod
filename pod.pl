@@ -251,8 +251,11 @@ sub print_header ( $class ) {
       ),
    );
    sayt sprintf( "$_format %s", _grey( "Path:" ), _grey( $pod->path ), );
+
    say "";
    my ( $name, $summary ) = split /\s*-\s*/, $pod->find_title, 2;
+   return unless $name and $summary;
+
    sayt _yellow( $name ) . " - " . _green( $summary );
    say "";
 }
