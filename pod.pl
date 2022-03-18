@@ -16,6 +16,7 @@ use Mojo::ByteStream qw/ b /;
 use Mojo::File qw/ path/;
 use Mojo::JSON qw/ j /;
 use Mojo::Util qw/ dumper /;
+use Term::ANSIColor qw( colored colorstrip );
 use subs qw/ r sayt /;
 
 use constant DEBUG_POD => 0;
@@ -139,7 +140,8 @@ sub show_help {
       $opt =~ s/\|/, /g;
       $opt =~ s/ (?=\b\w{2}) /--/gx;    # Long opts
       $opt =~ s/ (?=\b\w\b)  /-/gx;     # Short opts
-      [ $opt, $desc, length $opt ];
+      my $colored_opt = _green( $opt );
+      [ $colored_opt, _grey( $desc ), length $colored_opt ];
    } _build_spec_list();
 
    my $max = max map { $_->[2] } @all;
@@ -150,28 +152,31 @@ sub show_help {
 
    say <<~HELP;
 
-   Shows available class methods and documentation
+   @{[ _grey("Shows available class methods and documentation") ]}
 
-   Syntax:
+   @{[ _neon("Syntax:") ]}
       $self module_name [method_name]
 
-   Options:
+   @{[ _neon("Options::") ]}
       $options
 
-   Examples:
-      # Methods
+   @{[ _neon("Examples:") ]}
+      @{[ _grey("# Methods") ]}
       $self Mojo::UserAgent
       $self Mojo::UserAgent -a
 
-      # Method
+      @{[ _grey("# Method") ]}
       $self Mojo::UserAgent prepare
 
-      # Documentation
+      @{[ _grey("# Documentation") ]}tion
       $self Mojo::UserAgent -d
 
-      # Edit
+      @{[ _grey("# Edit") ]}
       $self Mojo::UserAgent -e
       $self Mojo::UserAgent prepare -e
+
+      @{[ _grey("# List all methods") ]}
+      $self Mojo::UserAgent --list_class_options
    HELP
 
    exit;
@@ -231,20 +236,40 @@ sub print_header ( $class ) {
    my $pod           = Pod::Query->new( $class );
    my $version       = $class->VERSION;
    my $first_release = Module::CoreList->first_release( $class );
+   my $_format       = "%-16s";
 
    say "";
-   sayt "# package: " . $class;
-   sayt "# path:    " . $pod->path;
-   sayt "# version: " . $version                    if $version;
-   sayt "# release: perl version " . $first_release if $first_release;
+   sayt sprintf(
+      "$_format %s%s%s",
+      _grey( "Package:" ),
+      _yellow( $class ),
+      ( $version ? _green( " $version" ) : "" ),
+      (
+         $first_release
+         ? _grey( " (since perl " ) . _green( $first_release ) . _grey( ")" )
+         : ""
+      ),
+   );
+   sayt sprintf( "$_format %s", _grey( "Path:" ), _grey( $pod->path ), );
    say "";
-   sayt $pod->find_title;
+   my ( $name, $summary ) = split /\s*-\s*/, $pod->find_title, 2;
+   sayt _yellow( $name ) . " - " . _green( $summary );
    say "";
 }
 
 sub show_method_doc ( $class, $method ) {
-   say scalar Pod::Query->new( $class )
-     ->find_method( $method );
+   my $doc = Pod::Query->new( $class )->find_method( $method );
+
+   for ( $doc ) {
+
+      # Headings.
+      s/ ^ \s* \K (\S+:) (?= \s* $ ) / _green($1) /xgem;
+
+      # Comments.
+      s/ (\#.+) / _grey($1) /xge;
+   }
+
+   say $doc;
 }
 
 sub show_inheritance ( @classes ) {
@@ -263,8 +288,8 @@ sub show_inheritance ( @classes ) {
    }
 
    my $size = @tree;
-   say "Inheritance ($size):";
-   say " $_" for @tree;
+   say _neon( "Inheritance ($size):" );
+   say _grey( " $_" ) for @tree;
    say "";
 }
 
@@ -275,12 +300,12 @@ sub show_events ( $class ) {
    return unless $size;
 
    my @save;
-   my $len    = max map { length } @names;
+   my $len    = max map { length( _green( $_ ) ) } @names;
    my $format = " %-${len}s - %s";
 
-   say "Events ($size):";
+   say _neon( "Events ($size):" );
    for ( @names ) {
-      sayt sprintf $format, $_, $events{$_};
+      sayt sprintf $format, _green( $_ ), _grey( $events{$_} );
       push @save, $_;
    }
 
@@ -309,25 +334,27 @@ sub show_methods ( $class, $opts ) {
 
    # If we have methods, but none are documented
    if ( @meths_all and not @meths_doc ) {
-      say "Warning: All methods are undocumented! (reverting to --all)\n";
+      say _grey(
+         "Warning: All methods are undocumented! (reverting to --all)\n" );
       $opts->{all} = 1;
    }
 
    my @meths = $opts->{all} ? @meths_all : @meths_doc;
    my $size  = @meths;
-   my $max   = max map { length $_->[0] } @meths;
+   my $max   = max map { length _green( $_->[0] ) } @meths;
    $max //= 0;
 
    my $format = " %-${max}s%s";
-   say "Methods ($size):";
+   say _neon( "Methods ($size):" );
 
    for my $list ( @meths ) {
       my ( $method, $doc_raw ) = @$list;
       my $doc = $doc_raw ? " - $doc_raw" : "";
-      sayt sprintf $format, $method, $doc;
+      $doc =~ s/\n+/ /g;
+      sayt sprintf $format, _green( $method ), _grey( $doc );
    }
 
-   say "\nUse --all (or -a) to see all methods."
+   say _grey( "\nUse --all (or -a) to see all methods." )
      unless $opts->{all};
    say "";
 
@@ -340,8 +367,13 @@ sub _trim ( $line ) {
    my $width = $term_width - length( $replacement ) - 1;    # "-1" for newline
 
    # Trim to terminal width
-   if ( length( $line ) >= $term_width ) {    # "=" also for newline
-      $line = substr( $line, 0, $width ) . $replacement;
+   my $colored_length   = length( $line );
+   my $uncolored_length = length( colorstrip( $line ) );
+   my $diff_length      = $colored_length - $uncolored_length;
+   $diff_length = $diff_length - 3 if $diff_length;
+
+   if ( $uncolored_length >= $term_width ) {    # "=" also for newline
+      $line = substr( $line, 0, $width + $diff_length ) . $replacement;
    }
 
    $line;
@@ -355,6 +387,32 @@ sub r {
 sub sayt {
 
    say _trim( @_ );
+}
+
+sub _red {
+
+   colored( "@_", "RESET RED" );
+}
+
+sub _yellow {
+
+   colored( "@_", "RESET YELLOW" );
+}
+
+sub _green {
+
+   # Reset since last line may be trimmed.
+   colored( "@_", "RESET GREEN" );
+}
+
+sub _grey {
+
+   colored( "@_", "RESET DARK" );
+}
+
+sub _neon {
+
+   colored( "@_", "RESET ON_BRIGHT_BLACK" );
 }
 
 sub define_last_run_cache_file {
