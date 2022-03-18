@@ -236,21 +236,28 @@ sub print_header ( $class ) {
    my $pod           = Pod::Query->new( $class );
    my $version       = $class->VERSION;
    my $first_release = Module::CoreList->first_release( $class );
-   my $_format       = "%-16s";
 
-   say "";
-   sayt sprintf(
-      "$_format %s%s%s",
+   my @package_line = (
       _grey( "Package:" ),
-      _yellow( $class ),
-      ( $version ? _green( " $version" ) : "" ),
-      (
-         $first_release
-         ? _grey( " (since perl " ) . _green( $first_release ) . _grey( ")" )
-         : ""
+      sprintf(
+         "%s%s%s",
+         _yellow( $class ),
+         ( $version ? _green( " $version" ) : "" ),
+         (
+            $first_release
+            ? _grey( " (since perl " ) . _green( $first_release ) . _grey( ")" )
+            : ""
+         ),
       ),
    );
-   sayt sprintf( "$_format %s", _grey( "Path:" ), _grey( $pod->path ), );
+   my @path_line = ( _grey( "Path:" ), _grey( $pod->path ), );
+
+   my $max     = max map { length } $package_line[0], $path_line[0];
+   my $_format = "%-${max}s";
+
+   say "";
+   sayt sprintf( "$_format %s", @package_line );
+   sayt sprintf( "$_format %s", @path_line );
 
    say "";
    my ( $name, $summary ) = split /\s*-\s*/, $pod->find_title, 2;
