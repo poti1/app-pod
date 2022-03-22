@@ -6,8 +6,13 @@ _my_clear_cache(){
 }
 
 pod(){
-   local dir=$(dirname $BASH_SOURCE)
-   perl $dir/pod.pl "$@"
+   if [ "$(basename $0)" == 'bash' ]; then
+      local dir=$(dirname $BASH_SOURCE)
+      perl $dir/pod.pl "$@"
+   else
+      local dir=$(dirname ${(%):-%x})
+      perl $dir/pod.pl "$@"
+   fi
 }
 
 _tab__pod(){
