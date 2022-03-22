@@ -11,8 +11,6 @@ pod(){
 }
 
 _tab__pod(){
-   local possible=( 123 456 789 )
-
    if [ ! -e "$MY_POD_CACHE" ]; then
       _tab__pod_make_cache
    fi
@@ -51,10 +49,12 @@ _tab__pod(){
    # Remove colon containing a prefix from COMPREPLY
    __ltrim_colon_completions "$cur" "$prev"
 }
+
 _tab__pod_make_cache(){
    _tab__pod_get_modules_list  > "$MY_POD_CACHE"
    pod --list_tool_options    >> "$MY_POD_CACHE"
 }
+
 _tab__pod_get_modules_list(){
    perl -le 'print for @INC' | while
       read dir; do
@@ -66,11 +66,14 @@ _tab__pod_get_modules_list(){
          ' | sort -u
       done
 }
+
 _tab__pod_count_args(){
    perl -le '
+      # Detects difference between "Mojo" and "Mojo " (simple, but important to consider).
       my @a = grep { /^[^-]/ } "@ARGV" =~ /(\S+\s+)/g;
       print scalar @a;
    ' -- "$@"
 }
+
 complete -F _tab__pod pod
 
