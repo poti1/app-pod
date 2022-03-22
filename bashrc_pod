@@ -6,7 +6,7 @@ _my_clear_cache(){
 }
 
 pod(){
-   case "$(basename $0)" in
+   case "$(basename $SHELL)" in
       bash)
          local dir=$(dirname $BASH_SOURCE)
          perl $dir/pod.pl "$@"
