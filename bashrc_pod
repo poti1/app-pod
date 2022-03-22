@@ -6,7 +6,8 @@ _my_clear_cache(){
 }
 
 pod(){
-   case "$(basename $SHELL)" in
+   # Most postable way to get the current shell name.
+   case "$(basename $(readlink /proc/$$/exe))" in
       bash)
          local dir=$(dirname $BASH_SOURCE)
          perl $dir/pod.pl "$@"
