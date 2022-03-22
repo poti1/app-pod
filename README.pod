@@ -50,7 +50,7 @@ Edit the module
 Edit the module and jump to the specific method definition right away.
 (Press "n" to next match if neeeded).
 
- % pod Mojo::UserAgent get -eo
+ % pod Mojo::UserAgent get -e
 
 Run perldoc on the module (for convience)
 
