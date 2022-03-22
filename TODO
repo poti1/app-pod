@@ -1,6 +1,9 @@
 TODO:
 
- - Add colors to output
+ - Add unit tests for:
+   Pod::LOL
+   Pod::Query
+   pod.pl
 
  - Make cpan repo
  https://perldoc.perl.org/perlnewmod
@@ -9,6 +12,9 @@ TODO:
  http://blogs.perl.org/users/neilb/2014/08/put-your-cpan-distributions-on-github.html
 
  - Find documentation for File::Basename.
+   - Really different pod format which is difficult to know if this is a method of a checklist:
+      =item C<fileparse>
+
  - Optimize performance of methods all.
       make single query.
  - Move each class to a separate file.
