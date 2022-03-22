@@ -123,7 +123,10 @@ sub new ( $class, $pod_class, $path_only = 0 ) {
       }
       else {
          my $parser = Pod::LOL->new;
+
+         # Normally =for and =begin would otherwise be skipped.
          $parser->accept_targets( '*' );
+
          $parser->parse_file( $s->path )->root;
       }
    };
