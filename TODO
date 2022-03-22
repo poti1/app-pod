@@ -5,6 +5,11 @@ TODO:
    Pod::Query
    pod.pl
 
+- Cleanup:
+   Pod::LOL
+   Pod::Query
+   pod.pl
+
  - Make cpan repo
  https://perldoc.perl.org/perlnewmod
 
