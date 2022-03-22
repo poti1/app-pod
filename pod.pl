@@ -252,12 +252,12 @@ sub print_header ( $class ) {
    );
    my @path_line = ( _grey( "Path:" ), _grey( $pod->path ), );
 
-   my $max     = max map { length } $package_line[0], $path_line[0];
-   my $_format = "%-${max}s";
+   my $max    = max map { length } $package_line[0], $path_line[0];
+   my $format = "%-${max}s %s";
 
    say "";
-   sayt sprintf( "$_format %s", @package_line );
-   sayt sprintf( "$_format %s", @path_line );
+   sayt sprintf( $format, @package_line );
+   sayt sprintf( $format, @path_line );
 
    say "";
    my ( $name, $summary ) = split /\s*-\s*/, $pod->find_title, 2;
