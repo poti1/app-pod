@@ -69,12 +69,12 @@ else {
 sub define_spec {
    <<~SPEC;
 
-      all|a              - Show all available class functions.
+      all|a              - Show all class functions.
       doc|d              - View the class documentation.
       edit|e             - Edit the source code.
       help|h             - Show this help section.
-      list_tool_options  - List available options to this tool.
-      list_class_options - List available options to a class (events,methods).
+      list_tool_options  - List tool options.
+      list_class_options - List class events and methods.
 
    SPEC
 }
