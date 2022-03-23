@@ -15,6 +15,10 @@ Quickly show available class methods and documentation.
 
 =head1 Installation:
 
+Install bash completion support.
+
+ % apt install bash-completion
+
 Install cpanm.
 
  % cpan App::cpanminus

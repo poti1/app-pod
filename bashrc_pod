@@ -6,7 +6,7 @@ _my_clear_cache(){
 }
 
 pod(){
-   # Most postable way to get the current shell name.
+   # Most portable way to get the current shell name.
    case "$(basename $(readlink /proc/$$/exe))" in
       bash)
          local dir=$(dirname $BASH_SOURCE)
@@ -29,10 +29,10 @@ _tab__pod(){
       _tab__pod_make_cache
    fi
 
-   local cur="${COMP_WORDS[COMP_CWORD]}"
    local prev="${COMP_WORDS[COMP_CWORD-1]}"
+   local cur="${COMP_WORDS[COMP_CWORD]}"
 
-   # Get possible words without consider colon characters
+   # Get possible words without considering colon characters
    _get_comp_words_by_ref -n : cur prev
 
    local words
@@ -51,11 +51,11 @@ _tab__pod(){
    COMPREPLY=( $(compgen -W "${words[@]}" -- "$cur") )
 
    # echo
-   # echo "cur           = [$cur]"
-   # echo "prev          = [$prev]"
-   # echo "args_cnt      = [$args_cnt]"
    # echo "COMP_WORDS    = [${#COMP_WORDS[@]}] [${COMP_WORDS[*]}]"
    # echo "COMP_CWORD    = [$COMP_CWORD]"
+   # echo "prev          = [$prev]"
+   # echo "cur           = [$cur]"
+   # echo "args_cnt      = [$args_cnt]"
    # echo "COMP_LINE     = [$COMP_LINE]"
    # echo "COMPREPLY     = [${COMPREPLY[@]}]"
    # echo
