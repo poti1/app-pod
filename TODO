@@ -1,5 +1,10 @@
 TODO:
 
+ - Add option to show module dependecies:
+   - Run this:
+         cpanm --showdeps DateTime -q | sort
+   - Option --show_class_dependencies
+
  - Add unit tests for:
    Pod::LOL
    Pod::Query
