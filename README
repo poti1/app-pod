@@ -1,4 +1,4 @@
-App-pod
+App-Pod
 
 The README is used to introduce the module and provide instructions on
 how to install the module, any machine dependencies it may have (for
@@ -26,18 +26,18 @@ SUPPORT AND DOCUMENTATION
 After installing, you can find documentation for this module with the
 perldoc command.
 
-    perldoc App::pod
+    perldoc App::Pod
 
 You can also look for information at:
 
     RT, CPAN's request tracker (report bugs here)
-        https://rt.cpan.org/NoAuth/Bugs.html?Dist=App-pod
+        https://rt.cpan.org/NoAuth/Bugs.html?Dist=App-Pod
 
     CPAN Ratings
-        https://cpanratings.perl.org/d/App-pod
+        https://cpanratings.perl.org/d/App-Pod
 
     Search CPAN
-        https://metacpan.org/release/App-pod
+        https://metacpan.org/release/App-Pod
 
 
 LICENSE AND COPYRIGHT

@@ -1,5 +1,5 @@
 {
-   "abstract" : "The great new App::pod!",
+   "abstract" : "The great new App::Pod!",
    "author" : [
       "Tim Potapov <tim.potapov[AT]gmail.com>"
    ],
@@ -12,7 +12,7 @@
       "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
       "version" : 2
    },
-   "name" : "App-pod",
+   "name" : "App-Pod",
    "prereqs" : {
       "configure" : {
          "requires" : {
@@ -33,9 +33,9 @@
       }
    },
    "provides" : {
-      "App::pod" : {
-         "file" : "lib/App/pod.pm",
-         "version" : "0.01"
+      "App::Pod" : {
+         "file" : "lib/App/Pod.pm",
+         "version" : "0.02"
       }
    },
    "release_status" : "stable",
@@ -44,6 +44,6 @@
          "http://www.perlfoundation.org/artistic_license_2_0"
       ]
    },
-   "version" : "0.01",
+   "version" : "0.02",
    "x_serialization_backend" : "JSON::PP version 4.07"
 }

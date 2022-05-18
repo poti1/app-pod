@@ -4,9 +4,11 @@ Build.PL
 Changes
 cpanfile
 ignore.txt
-lib/App/pod.pm
+lib/App/Pod.pm
 LICENSE
 MANIFEST			This list of files
+META.json
+META.yml
 nytprof.out
 old/dir.pl
 README
@@ -17,5 +19,3 @@ t/pod-coverage.t
 t/pod.t
 TODO
 xt/boilerplate.t
-META.yml
-META.json

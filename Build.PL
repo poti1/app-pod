@@ -5,10 +5,10 @@ use Module::Build;
 Module::Build->VERSION('0.4004');
 
 my $builder = Module::Build->new(
-    module_name         => 'App::pod',
+    module_name         => 'App::Pod',
     license             => 'artistic_2',
     dist_author         => q{Tim Potapov <tim.potapov[AT]gmail.com>},
-    dist_version_from   => 'lib/App/pod.pm',
+    dist_version_from   => 'lib/App/Pod.pm',
     release_status      => 'stable',
     configure_requires => {
         'Module::Build' => '0.4004',
@@ -21,7 +21,7 @@ my $builder = Module::Build->new(
         'Pod::Query' => '0.02',
         'Mojolicious' => '9.19',
     },
-    add_to_cleanup     => [ 'App-pod-*' ],
+    add_to_cleanup     => [ 'App-Pod-*' ],
 );
 
 $builder->create_build_script();

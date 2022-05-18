@@ -12,4 +12,4 @@
 ^MANIFEST\.SKIP
 
 # Avoid archives of this distribution
-\bApp-pod-[\d\.\_]+
+\bApp-Pod-[\d\.\_]+
