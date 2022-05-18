@@ -1,4 +1,4 @@
-Pod-LOL
+App-pod
 
 The README is used to introduce the module and provide instructions on
 how to install the module, any machine dependencies it may have (for
@@ -16,33 +16,33 @@ INSTALLATION
 
 To install this module, run the following commands:
 
-	perl Makefile.PL
-	make
-	make test
-	make install
+	perl Build.PL
+	./Build
+	./Build test
+	./Build install
 
 SUPPORT AND DOCUMENTATION
 
 After installing, you can find documentation for this module with the
 perldoc command.
 
-    perldoc Pod::LOL
+    perldoc App::pod
 
 You can also look for information at:
 
     RT, CPAN's request tracker (report bugs here)
-        https://rt.cpan.org/NoAuth/Bugs.html?Dist=Pod-LOL
+        https://rt.cpan.org/NoAuth/Bugs.html?Dist=App-pod
 
     CPAN Ratings
-        https://cpanratings.perl.org/d/Pod-LOL
+        https://cpanratings.perl.org/d/App-pod
 
     Search CPAN
-        https://metacpan.org/release/Pod-LOL
+        https://metacpan.org/release/App-pod
 
 
 LICENSE AND COPYRIGHT
 
-This software is Copyright (c) 2021 by Tim Potapov.
+This software is Copyright (c) 2022 by Tim Potapov.
 
 This is free software, licensed under:
 
