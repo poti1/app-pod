@@ -16,3 +16,10 @@ pod2htm*.tmp
 pm_to_blib
 App-pod-*
 App-pod-*.tar.gz
+# hidden files
+.*
+
+# Profiling
+nytprof*
+
+!.gitignore
