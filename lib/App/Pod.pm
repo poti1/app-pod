@@ -1,30 +1,34 @@
 package App::Pod;
 
-use v5.24;   # Postfix defef :)
+use v5.24;    # Postfix defef :)
 use strict;
 use warnings;
-use FindBin qw/ $RealBin /;
-# use lib ".", "$RealBin/Pod-Query/lib";
 use Module::Functions qw/ get_public_functions get_full_functions /;
 use Module::CoreList;
-use Pod::Query;
-use File::Basename qw/ basename        /;
-use List::Util qw/ max             /;
+use File::Basename qw/ basename /;
+use File::Spec::Functions qw/ catfile  /;
+use List::Util qw/ max /;
 use Getopt::Long;
-use Mojo::Base qw/ -strict -signatures /;
+use Mojo::Base qw/ -strict /;
 use Mojo::ByteStream qw/ b /;
 use Mojo::File qw/ path/;
 use Mojo::JSON qw/ j /;
 use Mojo::Util qw/ dumper /;
 use Term::ANSIColor qw( colored colorstrip );
+use Pod::Query;
 use subs qw/ r sayt /;
-
-use constant DEBUG_POD => 0;
 
 
 =head1 NAME
 
-App::Pod - The great new App::Pod!
+ ~                      __   __              __ ~
+ ~     ____  ____  ____/ /  / /_____  ____  / / ~
+ ~    / __ \/ __ \/ __  /  / __/ __ \/ __ \/ /  ~
+ ~   / /_/ / /_/ / /_/ /  / /_/ /_/ / /_/ / /   ~
+ ~  / .___/\____/\__,_/   \__/\____/\____/_/    ~
+ ~ /_/                                          ~
+
+App::Pod - Quickly show available class methods and documentation.
 
 =head1 VERSION
 
@@ -37,16 +41,106 @@ our $VERSION = '0.03';
 
 =head1 SYNOPSIS
 
+View summary of Mojo::UserAgent:
 
-   This is just an umbrella module.
-   Check README for usage.
+ % pod Mojo::UserAgent
+
+View summary of a specific method.
+
+ % pod Mojo::UserAgent get
+
+Edit the module
+
+ % pod Mojo::UserAgent -e
+
+Edit the module and jump to the specific method definition right away.
+(Press "n" to next match if neeeded).
+
+ % pod Mojo::UserAgent get -e
+
+Run perldoc on the module (for convience).
+
+ % pod Mojo::UserAgent -d
+
+List all available methods.
+If no methods are found normally, then this will automatically be enabled.
+(pod was made to work with Mojo pod styling).
+
+ % pod Mojo::UserAgent -a
+
+Show help.
+
+ % pod
+ % pod -h
+
 
 =head1 DESCRIPTION
 
 
 =head1 SUBROUTINES/METHODS
 
+=head2 run
+
+Run the main program.
+
+   use App::Pod;
+   App::Pod->run;
+
+=cut
+
+sub run {
+   my $self = __PACKAGE__->new;
+   my $opts = get_opts();
+
+   list_tool_options( $opts ) if $opts->{list_tool_options};
+   show_help()                if not @ARGV or $opts->{help};
+
+   my ( $class, @args ) = @ARGV;
+   my ( $method ) = @args;
+   $self->list_class_options( $class ) if $opts->{list_class_options};
+
+   import_class( $class ) or exit;
+
+   if ( $opts->{edit} ) {
+      edit_file( $class, $method );
+   }
+   elsif ( $opts->{doc} ) {
+      doc_class( $class, @args );
+   }
+
+   print_header( $class );
+   if ( $method ) {
+      show_method_doc( $class, $method );
+   }
+   else {
+      show_inheritance( $class );
+      my $save = {
+         class   => $class,
+         options => [ show_events( $class ), show_methods( $class, $opts ), ],
+      };
+      save_last_class_and_options( $save );
+      $self->list_class_options( $class ) if $opts->{list_class_options};
+   }
+}
+
+=head2 new
+
+Create a new object.
+
+=cut
+
+sub new {
+   my ( $class ) = @_;
+   my $null_fh;
+
+   bless {
+      null_fh => \$null_fh,    # TODO: WHY?
+   }, $class;
+}
+
 =head2 define_spec
+
+Define the command line argument specificaiton.
 
 =cut
 
@@ -88,7 +182,15 @@ sub get_opts {
    $opts;
 }
 
-sub list_tool_options ( $opts ) {
+=head2 list_tool_options
+
+Returns a list of the possible command line options
+to this tool.
+
+=cut
+
+sub list_tool_options {
+   my ( $opts ) = @_;
    say for get_optios_list();
    exit unless $opts->{list_class_options};
 }
@@ -99,7 +201,8 @@ sub list_tool_options ( $opts ) {
 
 =cut
 
-sub list_class_options ( $class ) {
+sub list_class_options {
+   my ( $self, $class ) = @_;
    my $last_data = get_last_class_and_options();
    if ( $last_data->{class} eq $class ) {
       select STDOUT;
@@ -108,16 +211,12 @@ sub list_class_options ( $class ) {
    }
 
    # Ignore the output.
-   open $NULL_FH, '>', '/dev/null' or die $!;
-   select $NULL_FH;
+   open $self->{null_fh}, '>', '/dev/null' or die $!;
+   $self->{stdout_fh} = select $self->{null_fh};
 }
 
 sub show_help {
-   my $YELLOW  = "\e[33m";
-   my $RESTORE = "\e[0m";
-   my $self    = basename( $0 );
-   $self =~ s/ \.\w+ $ //x;
-   $self = "$YELLOW$self$RESTORE";
+   my $scipt = _yellow( "pod" );
 
    my @all = map {
       my ( $opt, $desc ) = @$_;
@@ -139,34 +238,35 @@ sub show_help {
    @{[ _grey("Shows available class methods and documentation") ]}
 
    @{[ _neon("Syntax:") ]}
-      $self module_name [method_name]
+      $scipt module_name [method_name]
 
    @{[ _neon("Options::") ]}
       $options
 
    @{[ _neon("Examples:") ]}
       @{[ _grey("# Methods") ]}
-      $self Mojo::UserAgent
-      $self Mojo::UserAgent -a
+      $scipt Mojo::UserAgent
+      $scipt Mojo::UserAgent -a
 
       @{[ _grey("# Method") ]}
-      $self Mojo::UserAgent prepare
+      $scipt Mojo::UserAgent prepare
 
-      @{[ _grey("# Documentation") ]}tion
-      $self Mojo::UserAgent -d
+      @{[ _grey("# Documentation") ]}
+      $scipt Mojo::UserAgent -d
 
       @{[ _grey("# Edit") ]}
-      $self Mojo::UserAgent -e
-      $self Mojo::UserAgent prepare -e
+      $scipt Mojo::UserAgent -e
+      $scipt Mojo::UserAgent prepare -e
 
       @{[ _grey("# List all methods") ]}
-      $self Mojo::UserAgent --list_class_options
+      $scipt Mojo::UserAgent --list_class_options
    HELP
 
    exit;
 }
 
-sub import_class ( $class ) {
+sub import_class {
+   my ( $class ) = @_;
 
    # Since ojo imports its DSL into the current package
    eval { eval "package $class; use $class"; };
@@ -179,18 +279,8 @@ sub import_class ( $class ) {
    $import_ok;
 }
 
-sub debug_pod ( $class ) {
-   my $pod = Pod::Query->new( $class );
-   my $doc = $pod->find_method_summary( $class );
-   say dumper $pod;
-   say $doc;
-
-   say Pod::Query->new( "ojo" )->find_title;
-
-   exit;
-}
-
-sub edit_file ( $class, $method ) {
+sub edit_file {
+   my ( $class, $method ) = @_;
    my $path = Pod::Query->new( $class, "path" )->path;
    my $cmd  = "vim $path";
 
@@ -209,14 +299,16 @@ sub edit_file ( $class, $method ) {
    exec $cmd;
 }
 
-sub doc_class ( $class, @args ) {
+sub doc_class {
+   my ( $class, @args ) = @_;
    my $cmd = "perldoc @args $class";
 
    # say $cmd;
    exec $cmd;
 }
 
-sub print_header ( $class ) {
+sub print_header {
+   my ( $class )     = @_;
    my $pod           = Pod::Query->new( $class );
    my $version       = $class->VERSION;
    my $first_release = Module::CoreList->first_release( $class );
@@ -251,7 +343,8 @@ sub print_header ( $class ) {
    say "";
 }
 
-sub show_method_doc ( $class, $method ) {
+sub show_method_doc {
+   my ( $class, $method ) = @_;
    my $doc = Pod::Query->new( $class )->find_method( $method );
 
    for ( $doc ) {
@@ -266,7 +359,8 @@ sub show_method_doc ( $class, $method ) {
    say $doc;
 }
 
-sub show_inheritance ( @classes ) {
+sub show_inheritance {
+   my ( @classes ) = @_;
    my @tree;
    my %seen;
    no strict 'refs';
@@ -288,10 +382,11 @@ sub show_inheritance ( @classes ) {
    say "";
 }
 
-sub show_events ( $class ) {
-   my %events = Pod::Query->new( $class )->find_events;
-   my @names  = sort keys %events;
-   my $size   = @names;
+sub show_events {
+   my ( $class ) = @_;
+   my %events    = Pod::Query->new( $class )->find_events;
+   my @names     = sort keys %events;
+   my $size      = @names;
    return unless $size;
 
    my @save;
@@ -309,7 +404,8 @@ sub show_events ( $class ) {
    @save;
 }
 
-sub show_methods ( $class, $opts ) {
+sub show_methods {
+   my ( $class, $opts ) = @_;
 
    #my @dirs = $class->dir;
    my @dirs = sort { $a cmp $b } get_full_functions( $class );
@@ -356,7 +452,8 @@ sub show_methods ( $class, $opts ) {
    @save;
 }
 
-sub _trim ( $line ) {
+sub _trim {
+   my ( $line )    = @_;
    my $term_width  = Pod::Query::get_term_width();
    my $replacement = " ...";
    my $width = $term_width - length( $replacement ) - 1;    # "-1" for newline
@@ -411,13 +508,14 @@ sub _neon {
 }
 
 sub define_last_run_cache_file {
-   "$ENV{HOME}/.cache/my_pod_last_run.cache";
+   catfile( $ENV{HOME}, ".cache", "my_pod_last_run.cache" );
 
 }
 
-sub save_last_class_and_options ( $save ) {
-   my $file = define_last_run_cache_file();
-   my $path = path( $file );
+sub save_last_class_and_options {
+   my ( $save ) = @_;
+   my $file     = define_last_run_cache_file();
+   my $path     = path( $file );
 
    if ( not -e $path->dirname ) {
       mkdir $path->dirname or die $!;
@@ -435,9 +533,7 @@ sub get_last_class_and_options {
 
 =for REMOVE
 
-#--------------------------------------------
-#               UNIVERSAL
-#--------------------------------------------
+# pod version 0
 
 package UNIVERSAL;
 
@@ -468,6 +564,15 @@ sub dir{
 
 =cut
 
+=head1 ENVIRONMENT
+
+Install bash completion support.
+
+ % apt install bash-completion
+
+Install tab completion.
+
+ % source bashrc_pod
 
 =head1 SEE ALSO
 
@@ -493,7 +598,6 @@ You can find documentation for this module with the perldoc command.
 
     perldoc App::Pod
 
-
 You can also look for information at:
 
 L<https://metacpan.org/pod/App::Pod>
@@ -516,4 +620,4 @@ This is free software, licensed under:
 
 =cut
 
-1; # End of App::Pod
+1;    # End of App::Pod

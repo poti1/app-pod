@@ -1,42 +1,14 @@
 #!/usr/bin/env perl
 
-use v5.24;   # postfix defef :)
+=pod
+
+This just calls App::Pod->run
+
+=cut
+
 use strict;
 use warnings;
+use App::Pod;
 
-
-my $opts = get_opts();
-my $NULL_FH;
-
-list_tool_options( $opts ) if $opts->{list_tool_options};
-show_help()                if not @ARGV or $opts->{help};
-
-my ( $class, @args ) = @ARGV;
-my ( $method ) = @args;
-list_class_options( $class ) if $opts->{list_class_options};
-
-import_class( $class ) or exit;
-
-debug_pod( $class ) if DEBUG_POD;
-
-if ( $opts->{edit} ) {
-   edit_file( $class, $method );
-}
-elsif ( $opts->{doc} ) {
-   doc_class( $class, @args );
-}
-
-print_header( $class );
-if ( $method ) {
-   show_method_doc( $class, $method );
-}
-else {
-   show_inheritance( $class );
-   my $save = {
-      class   => $class,
-      options => [ show_events( $class ), show_methods( $class, $opts ), ],
-   };
-   save_last_class_and_options( $save );
-   list_class_options( $class ) if $opts->{list_class_options};
-}
+App::Pod->run;
 
