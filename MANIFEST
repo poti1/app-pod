@@ -3,7 +3,6 @@ bin/pod
 Build.PL
 Changes
 cpanfile
-ignore.txt
 lib/App/Pod.pm
 LICENSE
 MANIFEST			This list of files
