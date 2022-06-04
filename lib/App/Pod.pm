@@ -92,14 +92,24 @@ sub run {
    my $self = __PACKAGE__->new;
    my $opts = get_opts();
 
-   list_tool_options( $opts ) if $opts->{list_tool_options};
-   show_help()                if not @ARGV or $opts->{help};
+   if ( $opts->{list_tool_options} ) {
+      list_tool_options();
+      return unless $opts->{list_class_options};
+   }
+
+   if ( not @ARGV or $opts->{help} ) {
+      show_help();
+      return;
+   }
 
    my ( $class, @args ) = @ARGV;
    my ( $method ) = @args;
-   $self->list_class_options( $class ) if $opts->{list_class_options};
 
-   import_class( $class ) or exit;
+   if ( $opts->{list_class_options} ) {
+      return if $self->list_class_options( $class );
+   }
+
+   import_class( $class ) or return;
 
    if ( $opts->{edit} ) {
       edit_file( $class, $method );
@@ -119,7 +129,9 @@ sub run {
          options => [ show_events( $class ), show_methods( $class, $opts ), ],
       };
       save_last_class_and_options( $save );
-      $self->list_class_options( $class ) if $opts->{list_class_options};
+      if ( $opts->{list_class_options} ) {
+         return if $self->list_class_options( $class );
+      }
    }
 }
 
@@ -190,9 +202,7 @@ to this tool.
 =cut
 
 sub list_tool_options {
-   my ( $opts ) = @_;
    say for get_optios_list();
-   exit unless $opts->{list_class_options};
 }
 
 =head2 list_class_options
@@ -207,7 +217,7 @@ sub list_class_options {
    if ( $last_data->{class} eq $class ) {
       select STDOUT;
       say for $last_data->{options}->@*;
-      exit;
+      return 1;
    }
 
    # Ignore the output.
@@ -261,8 +271,6 @@ sub show_help {
       @{[ _grey("# List all methods") ]}
       $scipt Mojo::UserAgent --list_class_options
    HELP
-
-   exit;
 }
 
 sub import_class {
