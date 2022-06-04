@@ -69,7 +69,7 @@ my @cases = (
       expected_output => [
          "",
          "Package: ojo",
-         "Path:    /home/tim/perl5/perlbrew/perls/perl-5.32.1/ ...",
+         "Path:    PATH",
          "",
          "ojo - Fun one-liners with Mojo",
          "",
@@ -106,7 +106,7 @@ my @cases = (
       expected_output => [
          "",
          "Package: Mojo::UserAgent",
-         "Path:    /home/tim/perl5/perlbrew/perls/perl-5.32.1/ ...",
+         "Path:    PATH",
          "",
          "Mojo::UserAgent - Non-blocking I/O HTTP and WebSocke ...",
          "",
@@ -162,6 +162,8 @@ my @cases = (
    },
 );
 
+my $is_path = qr/ ^ Path: \s* \K (.*) $ /x;
+
 for my $case ( @cases ) {
    local @ARGV = ( $case->{input}->@* );
    my $output;
@@ -173,10 +175,15 @@ for my $case ( @cases ) {
       App::Pod->run;
    }
 
-   $output = [ split /\n/, colorstrip( $output ) ];
+   my @lines = split /\n/, colorstrip( $output );
 
-   say dumper $output
-     unless is_deeply( $output, $case->{expected_output}, $case->{name} );
+   # Normalize Path.
+   for ( @lines ) {
+      last if s/$is_path/PATH/;
+   }
+
+   say dumper \@lines
+     unless is_deeply( \@lines, $case->{expected_output}, $case->{name} );
 }
 
 done_testing();    # TODO: add the total
