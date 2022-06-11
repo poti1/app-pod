@@ -76,6 +76,7 @@ Show help.
 
 =head1 DESCRIPTION
 
+Basically, this is a tool that can quickly summarize the contents of a perl module.
 
 =head1 SUBROUTINES/METHODS
 
@@ -174,23 +175,29 @@ sub _build_spec_list {
     map    { [ split / \s+ - \s+ /x, $_, 2 ] }  # Split into: opts - description
       map  { b( $_ )->trim }                    # Trim leading/trailing spaces
       grep { not /^ \s* $/x }                   # Blank lines
-      split "\n", define_spec();
+      split "\n", __PACKAGE__->define_spec();
 }
 
-sub get_spec_list {
-    map { $_->[0] } _build_spec_list();
+sub _get_spec_list {
+    map { $_->[0] } __PACKAGE__->_build_spec_list();
 }
 
-sub get_optios_list {
+sub _get_optios_list {
     sort
       map { length( $_ ) == 1 ? "-$_" : "--$_"; }
-      map { split /\|/ } get_spec_list();
+      map { split /\|/ } __PACKAGE__->_get_spec_list();
 }
+
+=head2 get_opts
+
+Extracts the command line options.
+
+=cut
 
 sub get_opts {
     my $opts = {};
 
-    GetOptions( $opts, get_spec_list ) or die $!;
+    GetOptions( $opts, __PACKAGE__->_get_spec_list() ) or die $!;
 
     $opts;
 }
@@ -203,7 +210,7 @@ to this tool.
 =cut
 
 sub list_tool_options {
-    say for get_optios_list();
+    say for __PACKAGE__->_get_optios_list();
 }
 
 =head2 list_class_options
@@ -226,6 +233,12 @@ sub list_class_options {
     $self->{stdout_fh} = select $self->{null_fh};
 }
 
+=head2 show_help
+
+Shows the help for this tool.
+
+=cut
+
 sub show_help {
     my $scipt = _yellow( "pod" );
 
@@ -236,7 +249,7 @@ sub show_help {
         $opt =~ s/ (?=\b\w\b)  /-/gx;     # Short opts
         my $colored_opt = _green( $opt );
         [ $colored_opt, _grey( $desc ), length $colored_opt ];
-    } _build_spec_list();
+    } __PACKAGE__->_build_spec_list();
 
     my $max = max map { $_->[2] } @all;
 
@@ -274,6 +287,12 @@ sub show_help {
    HELP
 }
 
+=head2 import_class
+
+Import a class into the current package.
+
+=cut
+
 sub import_class {
     my ( $class ) = @_;
 
@@ -287,6 +306,13 @@ sub import_class {
 
     $import_ok;
 }
+
+=head2 edit_file
+
+Edit a file using vim.
+Can optionally just to a specific keyword.
+
+=cut
 
 sub edit_file {
     my ( $class, $method ) = @_;
@@ -308,13 +334,22 @@ sub edit_file {
     exec $cmd;
 }
 
+=head2 doc_class
+
+Show the documentation for a module using perldoc.
+
+=cut
+
 sub doc_class {
     my ( $class, @args ) = @_;
-    my $cmd = "perldoc @args $class";
-
-    # say $cmd;
-    exec $cmd;
+    exec "perldoc @args $class";
 }
+
+=head2 print_header
+
+Prints a generic header for a module.
+
+=cut
 
 sub print_header {
     my ( $class )     = @_;
@@ -354,6 +389,12 @@ sub print_header {
     say "";
 }
 
+=head2 show_method_doc
+
+Show documentation for a specific module method.
+
+=cut
+
 sub show_method_doc {
     my ( $class, $method ) = @_;
     my $doc = Pod::Query->new( $class )->find_method( $method );
@@ -369,6 +410,12 @@ sub show_method_doc {
 
     say $doc;
 }
+
+=head2 show_inheritance
+
+Show the Inheritance chain of a class/module.
+
+=cut
 
 sub show_inheritance {
     my ( @classes ) = @_;
@@ -393,6 +440,12 @@ sub show_inheritance {
     say "";
 }
 
+=head2 show_events
+
+Show any declared class events.
+
+=cut
+
 sub show_events {
     my ( $class ) = @_;
     my %events    = Pod::Query->new( $class )->find_events;
@@ -414,6 +467,12 @@ sub show_events {
 
     @save;
 }
+
+=head2 show_methods
+
+Show all class methods.
+
+=cut
 
 sub show_methods {
     my ( $class, $opts ) = @_;
@@ -518,10 +577,24 @@ sub _neon {
     colored( "@_", "RESET ON_BRIGHT_BLACK" );
 }
 
+=head2 define_last_run_cache_file
+
+Defined where to save the results from the last run.
+This is done for performance reasons.
+
+=cut
+
 sub define_last_run_cache_file {
     catfile( $ENV{HOME}, ".cache", "my_pod_last_run.cache" );
 
 }
+
+=head2 save_last_class_and_options
+
+Saves the last class name and what methods/options
+if may have.
+
+=cut
 
 sub save_last_class_and_options {
     my ( $save ) = @_;
@@ -535,6 +608,12 @@ sub save_last_class_and_options {
     $path->spurt( j $save );
 }
 
+=head2 get_last_class_and_options
+
+Returns the last stored class and its options.
+
+=cut
+
 sub get_last_class_and_options {
     my $file = define_last_run_cache_file();
     return { class => '' } unless -e $file;
@@ -543,37 +622,35 @@ sub get_last_class_and_options {
 }
 
 =for REMOVE
-
-# pod version 0
-
-package UNIVERSAL;
-
-sub dir{
-   my ($s)   = @_;               # class or object
-   my $ref   = ref $s;
-   my $class = $ref ? $ref : $s; # myClass
-   my $pkg   = $class . "::";    # MyClass::
-   my @keys_raw;
-   my $is_special_block = qr/^ (?:BEGIN|UNITCHECK|INIT|CHECK|END|import|DESTROY) $/x;
-
-   no strict 'refs';
-
-   while( my($key,$stash) = each %$pkg){
-#     next if $key =~ /$is_special_block/;   # Not a special block
-#     next if $key =~ /^ _ /x;               # Not private method
-      next if ref $stash;                    # Stash name should not be a reference
-      next if not defined *$stash{CODE};     # Stash function should be defined
-      push @keys_raw, $key;
-   }
-
-   my @keys = sort @keys_raw;
-
-   return @keys if defined wantarray;
-
-   say join "\n  ", "\n$class", @keys;
-}
-
-=cut
+-
+- # pod version 0
+-
+- package UNIVERSAL;
+-
+- sub dir{
+-    my ($s)   = @_;               # class or object
+-    my $ref   = ref $s;
+-    my $class = $ref ? $ref : $s; # myClass
+-    my $pkg   = $class . "::";    # MyClass::
+-    my @keys_raw;
+-    my $is_special_block = qr/^ (?:BEGIN|UNITCHECK|INIT|CHECK|END|import|DESTROY) $/x;
+-
+-    no strict 'refs';
+-
+-    while( my($key,$stash) = each %$pkg){
+- #     next if $key =~ /$is_special_block/;   # Not a special block
+- #     next if $key =~ /^ _ /x;               # Not private method
+-       next if ref $stash;                    # Stash name should not be a reference
+-       next if not defined *$stash{CODE};     # Stash function should be defined
+-       push @keys_raw, $key;
+-    }
+-
+-    my @keys = sort @keys_raw;
+-
+-    return @keys if defined wantarray;
+-
+-    say join "\n  ", "\n$class", @keys;
+- }
 
 =head1 ENVIRONMENT
 
