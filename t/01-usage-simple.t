@@ -43,6 +43,7 @@ my @cases = (
             "   --help, -h           - Show this help section.",
             "   --list_tool_options  - List tool options.",
             "   --list_class_options - List class events and methods.",
+            "   --query, -q          - Run a pod query.",
             "",
             "Examples:",
             "   # Methods",
@@ -160,6 +161,31 @@ my @cases = (
             "Use --all (or -a) to see all methods.",
         ],
     },
+    {
+        name  => "Query Options",
+        input => [qw{ Module::Build --query head1=ACTIONS/item-text }],
+        expected_output => [
+            "build",           "clean",
+            "code",            "config_data",
+            "diff",            "dist",
+            "distcheck",       "distclean",
+            "distdir",         "distinstall",
+            "distmeta",        "distsign",
+            "disttest",        "docs",
+            "fakeinstall",     "help",
+            "html",            "install",
+            "installdeps",     "manifest",
+            "manifest_skip",   "manpages",
+            "pardist",         "ppd",
+            "ppmdist",         "prereq_data",
+            "prereq_report",   "pure_install",
+            "realclean",       "retest",
+            "skipcheck",       "test",
+            "testall",         "testcover",
+            "testdb",          "testpod",
+            "testpodcoverage", "versioninstall",
+        ],
+    },
 );
 
 my $is_path = qr/ ^ Path: \s* \K (.*) $ /x;
@@ -186,5 +212,5 @@ for my $case ( @cases ) {
       unless is_deeply( \@lines, $case->{expected_output}, $case->{name} );
 }
 
-done_testing();    # TODO: add the total
+done_testing( 6 );
 

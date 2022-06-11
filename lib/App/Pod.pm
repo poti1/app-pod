@@ -118,6 +118,10 @@ sub run {
     elsif ( $opts->{doc} ) {
         doc_class( $class, @args );
     }
+    elsif ( $opts->{query} ) {
+        query_class( $class, @args );
+        return;
+    }
 
     print_header( $class );
     if ( $method ) {
@@ -167,6 +171,7 @@ sub define_spec {
       help|h             - Show this help section.
       list_tool_options  - List tool options.
       list_class_options - List class events and methods.
+      query|q            - Run a pod query.
 
    SPEC
 }
@@ -343,6 +348,17 @@ Show the documentation for a module using perldoc.
 sub doc_class {
     my ( $class, @args ) = @_;
     exec "perldoc @args $class";
+}
+
+=head2 query_class
+
+Run a pod query using Pod::Query.
+
+=cut
+
+sub query_class {
+    my ( $class, $query ) = @_;
+    say for Pod::Query->new( $class )->find( $query );
 }
 
 =head2 print_header
