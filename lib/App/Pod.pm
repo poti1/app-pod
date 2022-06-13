@@ -470,6 +470,7 @@ sub show_header {
     _sayt sprintf( $format, @path_line );
 
     say "";
+    local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
     my ( $name, $summary ) = split /\s*-\s*/, $pod->find_title, 2;
     return unless $name and $summary;
 
@@ -485,6 +486,7 @@ Show documentation for a specific module method.
 
 sub show_method_doc {
     my ( $self ) = @_;
+    local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
     my $doc = Pod::Query
       ->new( $self->class )
       ->find_method( $self->method );
@@ -544,6 +546,7 @@ sub _get_events {
     return $cache if $cache;
 
     # Get all class events.
+    local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
     my %events = Pod::Query
       ->new( $self->class )
       ->find_events;
@@ -594,11 +597,12 @@ sub _get_methods {
     return $cache if $cache;
 
     # Get all methods.
+    local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
     my @methods;
     my $pod = Pod::Query->new( $self->class );
     if ( $self->_import_class ) {
         @methods =
-          map { [ $_, scalar $pod->find_method_summary( $_ ), ] }
+          map { [ $_, scalar $pod->find_method_summary( $_ ) ] }
           sort ( get_full_functions( $self->class ) );
     }
 
