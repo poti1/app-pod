@@ -346,7 +346,7 @@ sub list_class_options {
     if ( not $self->class ) {
         say "";
         say _red( "Missing class name!" );
-        say "";
+        say _reset( "" );
         return;
     }
 
@@ -456,7 +456,7 @@ sub _class_error {
     if ( $class !~ / ^ [ \w_: ]+ $ /x ) {
         say "";
         say _red( "Invalid class name: $class" );
-        say "";
+        say _reset( "" );
         return 1;
     }
 
@@ -506,7 +506,7 @@ sub show_header {
     return unless $name and $summary;
 
     _sayt _yellow( $name ) . " - " . _green( $summary );
-    say "";
+    say _reset( "" );
 }
 
 =head2 show_method_doc
@@ -524,6 +524,7 @@ sub show_method_doc {
 
     # Color.
     for ( $doc ) {
+        chomp;
 
         # Headings.
         s/ ^ \s* \K (\S+:) (?= \s* $ ) / _green($1) /xgem;
@@ -533,6 +534,7 @@ sub show_method_doc {
     }
 
     say $doc;
+    say _reset( "" );
 }
 
 =head2 show_inheritance
@@ -562,7 +564,7 @@ sub show_inheritance {
     return if $size <= 1;
     say _neon( "Inheritance ($size):" );
     say _grey( " $_" ) for @tree;
-    say "";
+    say _reset( "" );
 }
 
 #
@@ -613,7 +615,7 @@ sub show_events {
     for ( @names ) {
         _sayt sprintf $format, _green( $_ ), _grey( $events->{$_} );
     }
-    say "";
+    say _reset( "" );
 }
 
 #
