@@ -5,25 +5,6 @@ _my_clear_cache(){
    rm -frv $MY_CACHE_DIR/my_*.cache
 }
 
-# pod(){
-#    # Most portable way to get the current shell name.
-#    case "$(basename $(readlink /proc/$$/exe))" in
-#       bash)
-#          local dir=$(dirname $BASH_SOURCE)
-#          perl $dir/pod.pl "$@"
-#       ;;
-#       zsh)
-#          local dir=$(dirname ${(%):-%x})
-#          perl $dir/pod.pl "$@"
-#       ;;
-#       *)
-#          echo
-#          echo "pod(): Not sure how to handle the shell: $0"
-#          echo
-#       ;;
-#    esac
-# }
-
 _tab__pod(){
    if [ ! -e "$MY_POD_CACHE" ]; then
       _tab__pod_make_cache
@@ -44,8 +25,8 @@ _tab__pod(){
    # pod Mojo::JOSN from_json
    case $args_cnt in
        1) words=$(cat $MY_POD_CACHE) ;;
-       2) words=$(pod $prev --list_class_options --list_tool_options) ;;
-       *) words=$(pod --list_tool_options) ;;
+       2) words=$(pod $prev --class_options --tool_options) ;;
+       *) words=$(pod --tool_options) ;;
    esac
 
    COMPREPLY=( $(compgen -W "${words[@]}" -- "$cur") )
@@ -66,7 +47,7 @@ _tab__pod(){
 
 _tab__pod_make_cache(){
    _tab__pod_get_modules_list  > "$MY_POD_CACHE"
-   pod --list_tool_options    >> "$MY_POD_CACHE"
+   pod --tool_options         >> "$MY_POD_CACHE"
 }
 
 _tab__pod_get_modules_list(){

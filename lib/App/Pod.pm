@@ -162,13 +162,13 @@ sub _define_spec {
             handler     => "_show_help",
         },
         {
-            spec        => "list_tool_options|lto",
+            spec        => "tool_options|to",
             description => "List tool options.",
             handler     => "list_tool_options",
         },
         {
-            spec        => "list_class_options|lco",
-            description => "List class events and methods.",
+            spec        => "class_options|co",
+            description => "Class events and methods.",
             handler     => "list_class_options",
         },
         {
@@ -178,11 +178,11 @@ sub _define_spec {
         },
         {
             spec        => "dump|dd",
-            description => "Dump additional information.",
+            description => "Dump extra info.",
         },
         {
             spec        => "doc|d",
-            description => "View the class documentation.",
+            description => "View class documentation.",
             handler     => "doc_class",
         },
         {
@@ -268,7 +268,7 @@ sub _define_help_template {
       <SCRIPT> Mojo::UserAgent prepare -e
 
       ##_grey:# List all methods
-      <SCRIPT> Mojo::UserAgent --list_class_options
+      <SCRIPT> Mojo::UserAgent --class_options
 
       ##_grey:# List all Module::Build actions.
       <SCRIPT> Module::Build --query head1=ACTIONS/item-text

@@ -34,56 +34,56 @@ my @cases = (
             "Shows available class methods and documentation",
             "",
             "Syntax:",
-            "    pod module_name [method_name]",
+            "  pod module_name [method_name]",
             "",
             "Options:",
-            "    --help, -h                  - Show this help section.",
-            "    --list_tool_options, --lto  - List tool options.",
-            "    --list_class_options, --lco - List class events and methods.",
-            "    --query, -q                 - Run a pod query.",
-            "    --dump, --dd                - Dump additional information.",
-            "    --doc, -d                   - View the class documentation.",
-            "    --edit, -e                  - Edit the source code.",
-            "    --all, -a                   - Show all class functions.",
+            "  --help, -h            - Show this help section.",
+            "  --tool_options, --to  - List tool options.",
+            "  --class_options, --co - Class events and methods.",
+            "  --query, -q           - Run a pod query.",
+            "  --dump, --dd          - Dump extra info.",
+            "  --doc, -d             - View class documentation.",
+            "  --edit, -e            - Edit the source code.",
+            "  --all, -a             - Show all class functions.",
             "",
             "Examples:",
-            "    # Methods",
-            "    pod Mojo::UserAgent",
-            "    pod Mojo::UserAgent -a",
+            "  # Methods",
+            "  pod Mojo::UserAgent",
+            "  pod Mojo::UserAgent -a",
             "",
-            "    # Method",
-            "    pod Mojo::UserAgent prepare",
+            "  # Method",
+            "  pod Mojo::UserAgent prepare",
             "",
-            "    # Documentation",
-            "    pod Mojo::UserAgent -d",
+            "  # Documentation",
+            "  pod Mojo::UserAgent -d",
             "",
-            "    # Edit",
-            "    pod Mojo::UserAgent -e",
-            "    pod Mojo::UserAgent prepare -e",
+            "  # Edit",
+            "  pod Mojo::UserAgent -e",
+            "  pod Mojo::UserAgent prepare -e",
             "",
-            "    # List all methods",
-            "    pod Mojo::UserAgent --list_class_options",
+            "  # List all methods",
+            "  pod Mojo::UserAgent --class_options",
             "",
-            "    # List all Module::Build actions.",
-            "    pod Module::Build --query head1=ACTIONS/item-text",
+            "  # List all Module::Build actions.",
+            "  pod Module::Build --query head1=ACTIONS/item-text",
         ],
     },
     {
-        name            => "list_tool_options",
-        input           => ["--list_tool_options"],
+        name            => "tool_options",
+        input           => ["--tool_options"],
         expected_output => [
             qw {
               --all
+              --class_options
+              --co
               --dd
               --doc
               --dump
               --edit
               --help
-              --lco
-              --list_class_options
-              --list_tool_options
-              --lto
               --query
+              --to
+              --tool_options
               -a
               -d
               -e
@@ -93,13 +93,13 @@ my @cases = (
         ],
     },
     {
-        name            => "list_class_options - No class",
-        input           => ["--list_class_options"],
+        name            => "class_options - No class",
+        input           => ["--class_options"],
         expected_output => [ "", "Missing class name!", ],
     },
     {
-        name            => "list_class_options - Mojo::UserAgent",
-        input           => [ "Mojo::UserAgent", "--list_class_options" ],
+        name            => "class_options - Mojo::UserAgent",
+        input           => [ "Mojo::UserAgent", "--class_options" ],
         expected_output => [
             qw{
               BEGIN
