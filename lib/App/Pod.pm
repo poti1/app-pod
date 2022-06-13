@@ -247,31 +247,31 @@ sub _define_help_template {
     ##_grey:Shows available class methods and documentation
 
     ##_neon:Syntax:
-        <SCRIPT> module_name [method_name]
+      <SCRIPT> module_name [method_name]
 
     ##_neon:Options:
-        <OPTIONS>
+      <OPTIONS>
 
     ##_neon:Examples:
-        ##_grey:# Methods
-        <SCRIPT> Mojo::UserAgent
-        <SCRIPT> Mojo::UserAgent -a
+      ##_grey:# Methods
+      <SCRIPT> Mojo::UserAgent
+      <SCRIPT> Mojo::UserAgent -a
 
-        ##_grey:# Method
-        <SCRIPT> Mojo::UserAgent prepare
+      ##_grey:# Method
+      <SCRIPT> Mojo::UserAgent prepare
 
-        ##_grey:# Documentation
-        <SCRIPT> Mojo::UserAgent -d
+      ##_grey:# Documentation
+      <SCRIPT> Mojo::UserAgent -d
 
-        ##_grey:# Edit
-        <SCRIPT> Mojo::UserAgent -e
-        <SCRIPT> Mojo::UserAgent prepare -e
+      ##_grey:# Edit
+      <SCRIPT> Mojo::UserAgent -e
+      <SCRIPT> Mojo::UserAgent prepare -e
 
-        ##_grey:# List all methods
-        <SCRIPT> Mojo::UserAgent --list_class_options
+      ##_grey:# List all methods
+      <SCRIPT> Mojo::UserAgent --list_class_options
 
-        ##_grey:# List all Module::Build actions.
-        <SCRIPT> Module::Build --query head1=ACTIONS/item-text
+      ##_grey:# List all Module::Build actions.
+      <SCRIPT> Module::Build --query head1=ACTIONS/item-text
     HELP
 }
 
@@ -306,10 +306,11 @@ sub _build_help_options {
         [ $colored_opt, _grey( $desc ), length $colored_opt ];
     } _define_spec();
 
-    my $max = max map { $_->[2] } @all;
+    my $max    = max map { $_->[2] } @all;
+    my $indent = " " x 2;
 
     my $options =
-      join "\n    ",
+      join "\n$indent",
       map { sprintf "%-${max}s - %s", @$_[ 0, 1 ] } @all;
 
     $options;
