@@ -1,23 +1,33 @@
 package App::Pod;
 
-use v5.24;    # Postfix defef :)
+use v5.24;    # Postfix deref :)
 use strict;
 use warnings;
 use Module::Functions qw/ get_public_functions get_full_functions /;
 use Module::CoreList;
 use File::Basename qw/ basename /;
 use File::Spec::Functions qw/ catfile  /;
-use List::Util qw/ max /;
+use List::Util qw/ first max /;
 use Getopt::Long;
-use Mojo::Base qw/ -strict /;
-use Mojo::ByteStream qw/ b /;
+use Mojo::Base qw/ -strict base /;
 use Mojo::File qw/ path/;
 use Mojo::JSON qw/ j /;
 use Mojo::Util qw/ dumper /;
 use Term::ANSIColor qw( colored colorstrip );
 use Pod::Query;
-use subs qw/ r sayt /;
+use subs qw/ _sayt /;
 
+has [
+    qw/
+      class
+      args
+      method
+      opts
+      non_main_options
+      cache_events
+      cache_methods
+      /
+];
 
 =head1 NAME
 
@@ -32,11 +42,11 @@ App::Pod - Quickly show available class methods and documentation.
 
 =head1 VERSION
 
-Version 0.05
+Version 0.06
 
 =cut
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 
 =head1 SYNOPSIS
@@ -68,6 +78,10 @@ If no methods are found normally, then this will automatically be enabled.
 
  % pod Mojo::UserAgent -a
 
+List all Module::Build actions.
+
+ % pod Module::Build --query head1=ACTIONS/item-text
+
 Show help.
 
  % pod
@@ -87,174 +101,148 @@ Run the main program.
    use App::Pod;
    App::Pod->run;
 
+Or just use the included script:
+
+    % pod
+
 =cut
+
+#
+# Run
+#
 
 sub run {
-    my $self = __PACKAGE__->new;
-    my $opts = get_opts();
+    my $self = __PACKAGE__->_new;
 
-    if ( $opts->{list_tool_options} ) {
-        list_tool_options();
-        return unless $opts->{list_class_options};
-    }
-
-    if ( not @ARGV or $opts->{help} ) {
-        show_help();
-        return;
-    }
-
-    my ( $class, @args ) = @ARGV;
-    my ( $method ) = @args;
-
-    if ( $opts->{list_class_options} ) {
-        return if $self->list_class_options( $class );
-    }
-
-    import_class( $class ) or return;
-
-    if ( $opts->{edit} ) {
-        edit_file( $class, $method );
-    }
-    elsif ( $opts->{doc} ) {
-        doc_class( $class, @args );
-    }
-    elsif ( $opts->{query} ) {
-        query_class( $class, @args );
-        return;
-    }
-
-    print_header( $class );
-    if ( $method ) {
-        show_method_doc( $class, $method );
+    if ( $self->non_main_options ) {
+        $self->_process_non_main;
     }
     else {
-        show_inheritance( $class );
-        my $save = {
-            class   => $class,
-            options =>
-              [ show_events( $class ), show_methods( $class, $opts ), ],
-        };
-        save_last_class_and_options( $save );
-        if ( $opts->{list_class_options} ) {
-            return if $self->list_class_options( $class );
-        }
+        $self->_process_main;
     }
 }
 
-=head2 new
-
-Create a new object.
-
-=cut
-
-sub new {
+sub _new {
     my ( $class ) = @_;
-    my $null_fh;
+    my $self      = bless {}, $class;
 
-    bless {
-        null_fh => \$null_fh,    # TODO: WHY?
-    }, $class;
+    $self->_init;
+
+    $self;
 }
 
-=head2 define_spec
+sub _init {
+    my ( $self ) = @_;
+    my $o = _get_opts();
+    my ( $class, @args ) = @ARGV;
 
-Define the command line argument specificaiton.
+    $self->opts( $o );
+    $self->class( $class );
+    $self->args( \@args );
+    $self->method( $args[0] );
 
-=cut
+    # Get non main options.
+    my @options = grep {    # Options
+        $o->{ $_->{name} }     # that are used
+          and $_->{handler}    # and have a handler.
+    } _define_spec();
 
-sub define_spec {
-    <<~SPEC;
+    if ( @options ) {
+        $self->non_main_options( \@options );
+    }
 
-      all|a              - Show all class functions.
-      doc|d              - View the class documentation.
-      edit|e             - Edit the source code.
-      help|h             - Show this help section.
-      list_tool_options  - List tool options.
-      list_class_options - List class events and methods.
-      query|q            - Run a pod query.
-
-   SPEC
+    say "self=" . dumper $self if $o->{dump};
 }
 
-sub _build_spec_list {
-    map    { [ split / \s+ - \s+ /x, $_, 2 ] }  # Split into: opts - description
-      map  { b( $_ )->trim }                    # Trim leading/trailing spaces
-      grep { not /^ \s* $/x }                   # Blank lines
-      split "\n", __PACKAGE__->define_spec();
+sub _define_spec {
+    my @spec = (
+        {
+            spec        => "help|h",
+            description => "Show this help section.",
+            handler     => "_show_help",
+        },
+        {
+            spec        => "list_tool_options|lto",
+            description => "List tool options.",
+            handler     => "list_tool_options",
+        },
+        {
+            spec        => "list_class_options|lco",
+            description => "List class events and methods.",
+            handler     => "list_class_options",
+        },
+        {
+            spec        => "query|q=s",
+            description => "Run a pod query.",
+            handler     => "query_class",
+        },
+        {
+            spec        => "dump|dd",
+            description => "Dump additional information.",
+        },
+        {
+            spec        => "doc|d",
+            description => "View the class documentation.",
+            handler     => "doc_class",
+        },
+        {
+            spec        => "edit|e",
+            description => "Edit the source code.",
+            handler     => "edit_class",
+        },
+        {
+            spec        => "all|a",
+            description => "Show all class functions.",
+        },
+    );
+
+    # Add the name.
+    for ( @spec ) {
+        $_->{name} = $_->{spec} =~ s/\|.+//r;
+    }
+
+    @spec;
 }
 
 sub _get_spec_list {
-    map { $_->[0] } __PACKAGE__->_build_spec_list();
+    map { $_->{spec} } _define_spec();
 }
 
-sub _get_optios_list {
-    sort
-      map { length( $_ ) == 1 ? "-$_" : "--$_"; }
-      map { split /\|/ } __PACKAGE__->_get_spec_list();
-}
-
-=head2 get_opts
-
-Extracts the command line options.
-
-=cut
-
-sub get_opts {
+sub _get_opts {
     my $opts = {};
 
-    GetOptions( $opts, __PACKAGE__->_get_spec_list() ) or die $!;
+    GetOptions( $opts, _get_spec_list() ) or die $!;
 
     $opts;
 }
 
-=head2 list_tool_options
+#
+# Non Main
+#
 
-Returns a list of the possible command line options
-to this tool.
+sub _process_non_main {
+    my ( $self ) = @_;
 
-=cut
-
-sub list_tool_options {
-    say for __PACKAGE__->_get_optios_list();
-}
-
-=head2 list_class_options
-
-   Use last saved data if available since this is the typical usage.
-
-=cut
-
-sub list_class_options {
-    my ( $self, $class ) = @_;
-    my $last_data = get_last_class_and_options();
-    if ( $last_data->{class} eq $class ) {
-        select STDOUT;
-        say for $last_data->{options}->@*;
-        return 1;
+    for ( $self->non_main_options->@* ) {
+        say "Processing: $_->{name}" if $self->opts->{dump};
+        my $handler = $_->{handler};
+        last if $self->$handler;
     }
-
-    # Ignore the output.
-    open $self->{null_fh}, '>', '/dev/null' or die $!;
-    $self->{stdout_fh} = select $self->{null_fh};
 }
 
-=head2 show_help
-
-Shows the help for this tool.
-
-=cut
-
-sub show_help {
-    my $scipt = _yellow( "pod" );
+sub _show_help {
+    my $script = _yellow( "pod" );
 
     my @all = map {
-        my ( $opt, $desc ) = @$_;
+        my $opt  = $_->{spec};
+        my $desc = $_->{description};
+        $opt =~ s/=\w+$//g;               # Option parameter.
         $opt =~ s/\|/, /g;
         $opt =~ s/ (?=\b\w{2}) /--/gx;    # Long opts
         $opt =~ s/ (?=\b\w\b)  /-/gx;     # Short opts
         my $colored_opt = _green( $opt );
         [ $colored_opt, _grey( $desc ), length $colored_opt ];
-    } __PACKAGE__->_build_spec_list();
+    } _define_spec();
 
     my $max = max map { $_->[2] } @all;
 
@@ -267,62 +255,94 @@ sub show_help {
    @{[ _grey("Shows available class methods and documentation") ]}
 
    @{[ _neon("Syntax:") ]}
-      $scipt module_name [method_name]
+      $script module_name [method_name]
 
-   @{[ _neon("Options::") ]}
+   @{[ _neon("Options:") ]}
       $options
 
    @{[ _neon("Examples:") ]}
       @{[ _grey("# Methods") ]}
-      $scipt Mojo::UserAgent
-      $scipt Mojo::UserAgent -a
+      $script Mojo::UserAgent
+      $script Mojo::UserAgent -a
 
       @{[ _grey("# Method") ]}
-      $scipt Mojo::UserAgent prepare
+      $script Mojo::UserAgent prepare
 
       @{[ _grey("# Documentation") ]}
-      $scipt Mojo::UserAgent -d
+      $script Mojo::UserAgent -d
 
       @{[ _grey("# Edit") ]}
-      $scipt Mojo::UserAgent -e
-      $scipt Mojo::UserAgent prepare -e
+      $script Mojo::UserAgent -e
+      $script Mojo::UserAgent prepare -e
 
       @{[ _grey("# List all methods") ]}
-      $scipt Mojo::UserAgent --list_class_options
+      $script Mojo::UserAgent --list_class_options
+
+      @{[ _grey("# List all Module::Build actions.") ]}
+      $script Module::Build --query head1=ACTIONS/item-text
    HELP
+
+    return 1;
 }
 
-=head2 import_class
+=head2 list_tool_options
 
-Import a class into the current package.
+Returns a list of the possible command line options
+to this tool.
 
 =cut
 
-sub import_class {
-    my ( $class ) = @_;
-
-    # Since ojo imports its DSL into the current package
-    eval { eval "package $class; use $class"; };
-
-    my $import_ok = do {
-        if ( $@ ) { warn $@; 0 }
-        else      { 1 }
-    };
-
-    $import_ok;
+sub list_tool_options {
+    say
+      for sort
+      map { length( $_ ) == 1 ? "-$_" : "--$_"; }
+      map { s/=\w+$//r }                            # Options which take values.
+      map { split /\|/ } _get_spec_list();
 }
 
-=head2 edit_file
+=head2 list_class_options
 
-Edit a file using vim.
+Shows a list of all the available class options
+which may be methods, events, etc.
+
+(This is handy for making tab completion based on
+a class.)
+
+=cut
+
+sub list_class_options {
+    my ( $self ) = @_;
+    if ( not $self->class ) {
+        say "";
+        say _red( "Missing class name!" );
+        say "";
+        return;
+    }
+
+    # Use cache if available.
+    my $cache = $self->retrieve_class();
+
+    # Make class specific cache if missing.
+    if ( $cache->{class} ne $self->class ) {
+        $cache = $self->store_class;
+    }
+
+    # Show possible options
+    say for $cache->{options}->@*;
+}
+
+=head2 edit_class
+
+Edit a class using vim.
 Can optionally just to a specific keyword.
 
 =cut
 
-sub edit_file {
-    my ( $class, $method ) = @_;
-    my $path = Pod::Query->new( $class, "path" )->path;
-    my $cmd  = "vim $path";
+sub edit_class {
+    my ( $self ) = @_;
+    my $path     = Pod::Query->new( $self->class, "path" )->path;
+    my $method   = $self->method;
+    my $cmd      = "vim $path";
 
     if ( $method ) {
         my $m      = "<\\zs$method\\ze>";
@@ -334,8 +354,6 @@ sub edit_file {
         $cmd .= " '+/\\v$sub|$monkey|$list|$qw|$emit'";
     }
 
-    # say $cmd;
-    # exit;
     exec $cmd;
 }
 
@@ -346,7 +364,10 @@ Show the documentation for a module using perldoc.
 =cut
 
 sub doc_class {
-    my ( $class, @args ) = @_;
+    my ( $self ) = @_;
+    my $class    = $self->class;
+    my @args     = $self->args->@*;
+
     exec "perldoc @args $class";
 }
 
@@ -354,21 +375,72 @@ sub doc_class {
 
 Run a pod query using Pod::Query.
 
+Use --dump option to show the data structure.
+(For debugging use).
+
 =cut
 
 sub query_class {
-    my ( $class, $query ) = @_;
-    say for Pod::Query->new( $class )->find( $query );
+    my ( $self ) = @_;
+
+    local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
+
+    say for Pod::Query
+      ->new( $self->class )
+      ->find( $self->opts->{query} );
 }
 
-=head2 print_header
+#
+# Main
+#
+
+sub _process_main {
+    my ( $self ) = @_;
+
+    return if $self->_class_error;
+
+    # Go on.
+    $self->show_header;
+    if ( $self->method ) {
+        $self->show_method_doc;
+    }
+    else {
+        $self->show_inheritance;
+        $self->show_events;
+        $self->show_methods;
+        $self->store_class;
+    }
+}
+
+sub _class_error {
+    my ( $self ) = @_;
+    my $class = $self->class;
+
+    if ( not $class ) {
+        $self->_show_help();
+        return 1;
+    }
+
+    # No wierd class names.
+    if ( $class !~ / ^ [ \w_: ]+ $ /x ) {
+        say "";
+        say _red( "Invalid class name: $class" );
+        say "";
+        return 1;
+    }
+
+    return 0;
+}
+
+=head2 show_header
 
 Prints a generic header for a module.
 
 =cut
 
-sub print_header {
-    my ( $class )     = @_;
+sub show_header {
+    my ( $self )      = @_;
+    my $class         = $self->class;
     my $pod           = Pod::Query->new( $class );
     my $version       = $class->VERSION;
     my $first_release = Module::CoreList->first_release( $class );
@@ -394,14 +466,14 @@ sub print_header {
     my $format = "%-${max}s %s";
 
     say "";
-    sayt sprintf( $format, @package_line );
-    sayt sprintf( $format, @path_line );
+    _sayt sprintf( $format, @package_line );
+    _sayt sprintf( $format, @path_line );
 
     say "";
     my ( $name, $summary ) = split /\s*-\s*/, $pod->find_title, 2;
     return unless $name and $summary;
 
-    sayt _yellow( $name ) . " - " . _green( $summary );
+    _sayt _yellow( $name ) . " - " . _green( $summary );
     say "";
 }
 
@@ -412,9 +484,12 @@ Show documentation for a specific module method.
 =cut
 
 sub show_method_doc {
-    my ( $class, $method ) = @_;
-    my $doc = Pod::Query->new( $class )->find_method( $method );
+    my ( $self ) = @_;
+    my $doc = Pod::Query
+      ->new( $self->class )
+      ->find_method( $self->method );
 
+    # Color.
     for ( $doc ) {
 
         # Headings.
@@ -434,7 +509,8 @@ Show the Inheritance chain of a class/module.
 =cut
 
 sub show_inheritance {
-    my ( @classes ) = @_;
+    my ( $self ) = @_;
+    my @classes = ( $self->class );
     my @tree;
     my %seen;
     no strict 'refs';
@@ -456,6 +532,33 @@ sub show_inheritance {
     say "";
 }
 
+#
+# Events
+#
+
+sub _get_events {
+    my ( $self ) = @_;
+
+    # Use cached data.
+    my $cache = $self->cache_events;
+    return $cache if $cache;
+
+    # Get all class events.
+    my %events = Pod::Query
+      ->new( $self->class )
+      ->find_events;
+
+    # Cache it.
+    $self->cache_events( \%events );
+
+    \%events;
+}
+
+sub _get_event_names {
+    my ( $self ) = @_;
+    sort keys $self->_get_events->%*;
+}
+
 =head2 show_events
 
 Show any declared class events.
@@ -463,25 +566,70 @@ Show any declared class events.
 =cut
 
 sub show_events {
-    my ( $class ) = @_;
-    my %events    = Pod::Query->new( $class )->find_events;
-    my @names     = sort keys %events;
-    my $size      = @names;
+    my ( $self ) = @_;
+    my $events   = $self->_get_events;
+    my @names    = $self->_get_event_names;
+    my $size     = @names;
     return unless $size;
 
-    my @save;
     my $len    = max map { length( _green( $_ ) ) } @names;
     my $format = " %-${len}s - %s";
 
     say _neon( "Events ($size):" );
     for ( @names ) {
-        sayt sprintf $format, _green( $_ ), _grey( $events{$_} );
-        push @save, $_;
+        _sayt sprintf $format, _green( $_ ), _grey( $events->{$_} );
+    }
+    say "";
+}
+
+#
+# Methods
+#
+
+sub _get_methods {
+    my ( $self ) = @_;
+
+    # Use cached data.
+    my $cache = $self->cache_methods;
+    return $cache if $cache;
+
+    # Get all methods.
+    my @methods;
+    my $pod = Pod::Query->new( $self->class );
+    if ( $self->_import_class ) {
+        @methods =
+          map { [ $_, scalar $pod->find_method_summary( $_ ), ] }
+          sort ( get_full_functions( $self->class ) );
     }
 
-    say "";
+    # Cache it.
+    $self->cache_methods( \@methods );
 
-    @save;
+    \@methods;
+}
+
+sub _import_class {
+    my ( $self ) = @_;
+    my $class = $self->class;
+
+    # Since ojo imports its DSL into the current package
+    eval { eval "package $class; use $class"; };
+
+    my $import_ok = do {
+        if ( $@ ) { warn $@; 0 }
+        else      { 1 }
+    };
+
+    $import_ok;
+}
+
+sub _get_method_names {
+    my ( $self ) = @_;
+    my $methods = $self->_get_methods;
+
+    my @names =
+      grep { / ^ [\w_-]+ $ /x }     # Normal looking names.
+      map { $_->[0] } @$methods;
 }
 
 =head2 show_methods
@@ -491,52 +639,102 @@ Show all class methods.
 =cut
 
 sub show_methods {
-    my ( $class, $opts ) = @_;
+    my ( $self ) = @_;
 
-    #my @dirs = $class->dir;
-    my @dirs = sort { $a cmp $b } get_full_functions( $class );
-    my $pod  = Pod::Query->new( $class );
-    my $doc  = "";
-
-    my @meths_all = map {
-        my $doc = $pod->find_method_summary( $_ );
-        [ $_, $doc ];
-    } @dirs;
+    my $all_method_names_and_docs = $self->_get_methods;
 
     # Documented methods
-    my @meths_doc = grep { $_->[1] } @meths_all;
-    my @save =
-      grep { / ^ [\w_-]+ $ /x }
-      map { $_->[0] } @meths_all;
+    my @all_method_docs = grep { $_->[1] } @$all_method_names_and_docs;
 
-    # If we have methods, but none are documented
-    if ( @meths_all and not @meths_doc ) {
+    # If we have methods, but none are documented (or found).
+    if ( @$all_method_names_and_docs and not @all_method_docs ) {
         say _grey(
             "Warning: All methods are undocumented! (reverting to --all)\n" );
-        $opts->{all} = 1;
+        $self->opts->{all} = 1;
     }
 
-    my @meths = $opts->{all} ? @meths_all : @meths_doc;
-    my $size  = @meths;
-    my $max   = max map { length _green( $_->[0] ) } @meths;
-    $max //= 0;
-
+    my @methods =
+      $self->opts->{all} ? @$all_method_names_and_docs : @all_method_docs;
+    my $max    = max 0, map { length _green( $_->[0] ) } @methods;
     my $format = " %-${max}s%s";
+    my $size   = @methods;
     say _neon( "Methods ($size):" );
 
-    for my $list ( @meths ) {
+    for my $list ( @methods ) {
         my ( $method, $doc_raw ) = @$list;
         my $doc = $doc_raw ? " - $doc_raw" : "";
         $doc =~ s/\n+/ /g;
-        sayt sprintf $format, _green( $method ), _grey( $doc );
+        _sayt sprintf $format, _green( $method ), _grey( $doc );
     }
 
     say _grey( "\nUse --all (or -a) to see all methods." )
-      unless $opts->{all};
+      unless $self->opts->{all};
     say "";
-
-    @save;
 }
+
+#
+# Caching
+#
+
+=head2 define_last_run_cache_file
+
+Defined where to save the results from the last run.
+This is done for performance reasons.
+
+=cut
+
+sub define_last_run_cache_file {
+    my ( $self ) = @_;
+    catfile( $ENV{HOME}, ".cache", "my_pod_last_run.cache" );
+
+}
+
+sub _get_class_options {
+    my ( $self ) = @_;
+
+    [ sort $self->_get_event_names, $self->_get_method_names, ];
+}
+
+=head2 store_class
+
+Saves the last class name and its methods/options.
+
+=cut
+
+sub store_class {
+    my ( $self ) = @_;
+    my $cache = {
+        class   => $self->class,
+        options => $self->_get_class_options,
+    };
+    my $path = path( $self->define_last_run_cache_file );
+
+    if ( not -e $path->dirname ) {
+        mkdir $path->dirname or die $!;
+    }
+
+    $path->spurt( j $cache );
+
+    $cache;
+}
+
+=head2 retrieve_class
+
+Returns the last stored class and its options.
+
+=cut
+
+sub retrieve_class {
+    my ( $self ) = @_;
+    my $file = $self->define_last_run_cache_file;
+    return { class => '' } if not -e $file;
+
+    j path( $file )->slurp;
+}
+
+#
+# Output
+#
 
 sub _trim {
     my ( $line )    = @_;
@@ -557,12 +755,7 @@ sub _trim {
     $line;
 }
 
-sub r {
-
-    say dumper \@_;
-}
-
-sub sayt {
+sub _sayt {
 
     say _trim( @_ );
 }
@@ -593,49 +786,9 @@ sub _neon {
     colored( "@_", "RESET ON_BRIGHT_BLACK" );
 }
 
-=head2 define_last_run_cache_file
-
-Defined where to save the results from the last run.
-This is done for performance reasons.
-
-=cut
-
-sub define_last_run_cache_file {
-    catfile( $ENV{HOME}, ".cache", "my_pod_last_run.cache" );
-
-}
-
-=head2 save_last_class_and_options
-
-Saves the last class name and what methods/options
-if may have.
-
-=cut
-
-sub save_last_class_and_options {
-    my ( $save ) = @_;
-    my $file     = define_last_run_cache_file();
-    my $path     = path( $file );
-
-    if ( not -e $path->dirname ) {
-        mkdir $path->dirname or die $!;
-    }
-
-    $path->spurt( j $save );
-}
-
-=head2 get_last_class_and_options
-
-Returns the last stored class and its options.
-
-=cut
-
-sub get_last_class_and_options {
-    my $file = define_last_run_cache_file();
-    return { class => '' } unless -e $file;
-
-    j path( $file )->slurp;
-}
+#
+# Junk
+#
 
 =for REMOVE
 -

@@ -18,7 +18,7 @@ my $builder = Module::Build->new(
     },
     requires => {
         'Module::Functions' => '2.1.3',
-        'Pod::Query' => '0.13',
+        'Pod::Query' => '0.14',
         'Mojolicious' => '9.19',
     },
     add_to_cleanup     => [ 'App-Pod-*' ],

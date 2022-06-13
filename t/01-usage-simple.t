@@ -36,14 +36,15 @@ my @cases = (
             "Syntax:",
             "   pod module_name [method_name]",
             "",
-            "Options::",
-            "   --all, -a            - Show all class functions.",
-            "   --doc, -d            - View the class documentation.",
-            "   --edit, -e           - Edit the source code.",
-            "   --help, -h           - Show this help section.",
-            "   --list_tool_options  - List tool options.",
-            "   --list_class_options - List class events and methods.",
-            "   --query, -q          - Run a pod query.",
+            "Options:",
+            "   --help, -h                  - Show this help section.",
+            "   --list_tool_options, --lto  - List tool options.",
+            "   --list_class_options, --lco - List class events and methods.",
+            "   --query, -q                 - Run a pod query.",
+            "   --dump, --dd                - Dump additional information.",
+            "   --doc, -d                   - View the class documentation.",
+            "   --edit, -e                  - Edit the source code.",
+            "   --all, -a                   - Show all class functions.",
             "",
             "Examples:",
             "   # Methods",
@@ -62,6 +63,187 @@ my @cases = (
             "",
             "   # List all methods",
             "   pod Mojo::UserAgent --list_class_options",
+            "",
+            "   # List all Module::Build actions.",
+            "   pod Module::Build --query head1=ACTIONS/item-text",
+        ],
+    },
+    {
+        name            => "list_tool_options",
+        input           => ["--list_tool_options"],
+        expected_output => [
+            qw {
+              --all
+              --dd
+              --doc
+              --dump
+              --edit
+              --help
+              --lco
+              --list_class_options
+              --list_tool_options
+              --lto
+              --query
+              -a
+              -d
+              -e
+              -h
+              -q
+            }
+        ],
+    },
+    {
+        name            => "list_class_options - No class",
+        input           => ["--list_class_options"],
+        expected_output => [ "", "Missing class name!", ],
+    },
+    {
+        name            => "list_class_options - Mojo::UserAgent",
+        input           => [ "Mojo::UserAgent", "--list_class_options" ],
+        expected_output => [
+            qw{
+              BEGIN
+              DEBUG
+              DESTROY
+              ISA
+              VERSION
+              __ANON__
+              _cleanup
+              _connect
+              _connect_proxy
+              _connection
+              _dequeue
+              _error
+              _finish
+              _process
+              _read
+              _redirect
+              _remove
+              _reuse
+              _start
+              _url
+              _write
+              build_tx
+              build_websocket_tx
+              ca
+              cert
+              connect_timeout
+              cookie_jar
+              delete
+              delete_p
+              get
+              get_p
+              has
+              head
+              head_p
+              import
+              inactivity_timeout
+              insecure
+              ioloop
+              key
+              max_connections
+              max_redirects
+              max_response_size
+              monkey_patch
+              new
+              options
+              options_p
+              patch
+              patch_p
+              post
+              post_p
+              prepare
+              proxy
+              put
+              put_p
+              request_timeout
+              server
+              socket_options
+              start
+              start
+              start_p
+              term_escape
+              transactor
+              weaken
+              websocket
+              websocket_p
+            }
+        ],
+    },
+    {
+        name  => "Query Options",
+        input => [qw{ Module::Build --query head1=ACTIONS/item-text }],
+        expected_output => [
+            "build",           "clean",
+            "code",            "config_data",
+            "diff",            "dist",
+            "distcheck",       "distclean",
+            "distdir",         "distinstall",
+            "distmeta",        "distsign",
+            "disttest",        "docs",
+            "fakeinstall",     "help",
+            "html",            "install",
+            "installdeps",     "manifest",
+            "manifest_skip",   "manpages",
+            "pardist",         "ppd",
+            "ppmdist",         "prereq_data",
+            "prereq_report",   "pure_install",
+            "realclean",       "retest",
+            "skipcheck",       "test",
+            "testall",         "testcover",
+            "testdb",          "testpod",
+            "testpodcoverage", "versioninstall",
+        ],
+    },
+
+    {
+        name  => "query_dump",
+        input =>
+          [qw{ Module::Build --query head1=ACTIONS/item-text[0] --dump }],
+        expected_output => [
+            "self=bless( {",
+            "  \"args\" => [],",
+            "  \"class\" => \"Module::Build\",",
+            "  \"method\" => undef,",
+            "  \"non_main_options\" => [",
+            "    {",
+            "      \"description\" => \"Run a pod query.\",",
+            "      \"handler\" => \"query_class\",",
+            "      \"name\" => \"query\",",
+            "      \"spec\" => \"query|q=s\"",
+            "    }",
+            "  ],",
+            "  \"opts\" => {",
+            "    \"dump\" => 1,",
+            "    \"query\" => \"head1=ACTIONS/item-text[0]\"",
+            "  }",
+            "}, 'App::Pod' )",
+            "",
+            "Processing: query",
+            "DEBUG_FIND_DUMP: [",
+            "  {",
+            "    \"keep\" => 1,",
+            "    \"kids\" => [",
+            "      {",
+            "        \"tag\" => \"Para\",",
+            "        \"text\" => \"[version 0.01]\"",
+            "      },",
+            "      {",
+            "        \"tag\" => \"Para\",",
+"        \"text\" => \"If you run the Build script without any arguments, it runs the build action, which in turn runs the code and docs actions.\"",
+            "      },",
+            "      {",
+            "        \"tag\" => \"Para\",",
+"        \"text\" => \"This is analogous to the MakeMaker make all target.\"",
+            "      }",
+            "    ],",
+            "    \"prev\" => [],",
+            "    \"tag\" => \"item-text\",",
+            "    \"text\" => \"build\"",
+            "  }",
+            "]",
+            "",
+            "build",
         ],
     },
     {
@@ -73,12 +255,6 @@ my @cases = (
             "Path:    PATH",
             "",
             "ojo - Fun one-liners with Mojo",
-            "",
-            "Inheritance (4):",
-            " ojo",
-            " Mojolicious",
-            " Mojolicious::_Dynamic",
-            " Mojo::Base",
             "",
             "Methods (16):",
             " a - Create a route with \"any\" in Mojolicious::Lite  ...",
@@ -161,31 +337,6 @@ my @cases = (
             "Use --all (or -a) to see all methods.",
         ],
     },
-    {
-        name  => "Query Options",
-        input => [qw{ Module::Build --query head1=ACTIONS/item-text }],
-        expected_output => [
-            "build",           "clean",
-            "code",            "config_data",
-            "diff",            "dist",
-            "distcheck",       "distclean",
-            "distdir",         "distinstall",
-            "distmeta",        "distsign",
-            "disttest",        "docs",
-            "fakeinstall",     "help",
-            "html",            "install",
-            "installdeps",     "manifest",
-            "manifest_skip",   "manpages",
-            "pardist",         "ppd",
-            "ppmdist",         "prereq_data",
-            "prereq_report",   "pure_install",
-            "realclean",       "retest",
-            "skipcheck",       "test",
-            "testall",         "testcover",
-            "testdb",          "testpod",
-            "testpodcoverage", "versioninstall",
-        ],
-    },
 );
 
 my $is_path = qr/ ^ Path: \s* \K (.*) $ /x;
@@ -208,9 +359,9 @@ for my $case ( @cases ) {
         last if s/$is_path/PATH/;
     }
 
-    say dumper \@lines
+    say dumper \@lines and last
       unless is_deeply( \@lines, $case->{expected_output}, $case->{name} );
 }
 
-done_testing( 6 );
+done_testing( 10 );
 
