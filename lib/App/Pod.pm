@@ -231,8 +231,70 @@ sub _process_non_main {
 }
 
 sub _show_help {
+    my ( $self ) = @_;
+
+    say $self->_process_template(
+        $self->_define_help_template,
+        $self->_build_help_options,
+    );
+
+    return 1;
+}
+
+sub _define_help_template {
+    <<~HELP;
+
+    ##_grey:Shows available class methods and documentation
+
+    ##_neon:Syntax:
+        <SCRIPT> module_name [method_name]
+
+    ##_neon:Options:
+        <OPTIONS>
+
+    ##_neon:Examples:
+        ##_grey:# Methods
+        <SCRIPT> Mojo::UserAgent
+        <SCRIPT> Mojo::UserAgent -a
+
+        ##_grey:# Method
+        <SCRIPT> Mojo::UserAgent prepare
+
+        ##_grey:# Documentation
+        <SCRIPT> Mojo::UserAgent -d
+
+        ##_grey:# Edit
+        <SCRIPT> Mojo::UserAgent -e
+        <SCRIPT> Mojo::UserAgent prepare -e
+
+        ##_grey:# List all methods
+        <SCRIPT> Mojo::UserAgent --list_class_options
+
+        ##_grey:# List all Module::Build actions.
+        <SCRIPT> Module::Build --query head1=ACTIONS/item-text
+    HELP
+}
+
+sub _process_template {
+    my ( $self, $template, $options ) = @_;
     my $script = _yellow( "pod" );
 
+    for ( $template ) {
+
+        # Color.
+        s/ ^ \s* \K \#\#([\w_]+): (.*) / qq($1("$2")) /gmxee;
+
+        # Expand <SCRIPT> tags.
+        s/<SCRIPT>/$script/g;
+
+        # Expand <OPTIONS> tags.
+        s/<OPTIONS>/$options/g;
+    }
+
+    $template;
+}
+
+sub _build_help_options {
     my @all = map {
         my $opt  = $_->{spec};
         my $desc = $_->{description};
@@ -250,42 +312,7 @@ sub _show_help {
       join "\n    ",
       map { sprintf "%-${max}s - %s", @$_[ 0, 1 ] } @all;
 
-    my $help = <<~HELP;
-
-    ##_grey:Shows available class methods and documentation
-
-    ##_neon:Syntax:
-        $script module_name [method_name]
-
-    ##_neon:Options:
-        $options
-
-    ##_neon:Examples:
-        ##_grey:# Methods
-        $script Mojo::UserAgent
-        $script Mojo::UserAgent -a
-
-        ##_grey:# Method
-        $script Mojo::UserAgent prepare
-
-        ##_grey:# Documentation
-        $script Mojo::UserAgent -d
-
-        ##_grey:# Edit
-        $script Mojo::UserAgent -e
-        $script Mojo::UserAgent prepare -e
-
-        ##_grey:# List all methods
-        $script Mojo::UserAgent --list_class_options
-
-        ##_grey:# List all Module::Build actions.
-        $script Module::Build --query head1=ACTIONS/item-text
-    HELP
-
-    $help =~ s/ ^ \s* \K \#\#([\w_]+): (.*) / qq($1("$2")) /gmxee;
-    say $help;
-
-    return 1;
+    $options;
 }
 
 =head2 list_tool_options
