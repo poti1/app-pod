@@ -106,7 +106,6 @@ my @cases = (
               DEBUG
               DESTROY
               ISA
-              VERSION
               __ANON__
               _cleanup
               _connect
@@ -145,7 +144,6 @@ my @cases = (
               max_redirects
               max_response_size
               monkey_patch
-              new
               options
               options_p
               patch
@@ -171,7 +169,7 @@ my @cases = (
         ],
     },
     {
-        name  => "Query Options",
+        name  => "query",
         input => [qw{ Module::Build --query head1=ACTIONS/item-text }],
         expected_output => [
             "build",           "clean",
@@ -337,6 +335,123 @@ my @cases = (
             "Use --all (or -a) to see all methods.",
         ],
     },
+    {
+        name            => "Module - Mojo::File",
+        input           => ["Mojo::File"],
+        expected_output => [
+            "",
+            "Package: Mojo::File",
+            "Path:    PATH",
+            "",
+            "Mojo::File - File system paths",
+            "",
+            "Methods (32):",
+            " basename    - Return the last level of the path wit ...",
+            " child       - Return a new Mojo::File object relati ...",
+            " chmod       - Change file permissions.",
+            " copy_to     - Copy file with File::Copy and return  ...",
+            " curfile     - Construct a new scalar-based Mojo::Fi ...",
+            " dirname     - Return all but the last level of the  ...",
+            " extname     - Return file extension of the path.",
+            " is_abs      - Check if the path is absolute.",
+            " list        - List all files in the directory and r ...",
+            " list_tree   - List all files recursively in the dir ...",
+            " lstat       - Return a File::stat object for the sy ...",
+            " make_path   - Create the directories if they don't  ...",
+            " move_to     - Move file with File::Copy and return  ...",
+            " new         - Construct a new Mojo::File object, de ...",
+            " open        - Open file with IO::File.",
+            " path        - Construct a new scalar-based Mojo::Fi ...",
+            " realpath    - Resolve the path with Cwd and return  ...",
+            " remove      - Delete file.",
+            " remove_tree - Delete this directory and any files a ...",
+            " sibling     - Return a new Mojo::File object relati ...",
+            " slurp       - Read all data at once from the file.",
+            " spurt       - Write all data at once to the file.",
+            " stat        - Return a File::stat object for the path.",
+            " tap         - Alias for \"tap\" in Mojo::Base.",
+            " tempdir     - Construct a new scalar-based Mojo::Fi ...",
+            " tempfile    - Construct a new scalar-based Mojo::Fi ...",
+            " to_abs      - Return absolute path as a Mojo::File  ...",
+            " to_array    - Split the path on directory separators.",
+            " to_rel      - Return a relative path from the origi ...",
+            " to_string   - Stringify the path.",
+            " touch       - Create file if it does not exist or c ...",
+            " with_roles  - Alias for \"with_roles\" in Mojo::Base.",
+            "",
+            "Use --all (or -a) to see all methods.",
+        ],
+    },
+    {
+        name            => "Module - Mojo::File --all",
+        input           => [qw(Mojo::File --all)],
+        expected_output => [
+            "",
+            "Package: Mojo::File",
+            "Path:    PATH",
+            "",
+            "Mojo::File - File system paths",
+            "",
+            "Methods (57):",
+            " (\"\"                  ",
+            " ((                   ",
+            " ()                   ",
+            " (\@{}                 ",
+            " (bool                ",
+            " AUTOLOAD             ",
+            " BEGIN                ",
+            " EXPORT               ",
+            " EXPORT_OK            ",
+            " ISA                  ",
+            " VERSION              ",
+            " __ANON__             ",
+            " abs2rel              ",
+            " basename              - Return the last level of th ...",
+            " can                  ",
+            " canonpath            ",
+            " catfile              ",
+            " child                 - Return a new Mojo::File obj ...",
+            " chmod                 - Change file permissions.",
+            " copy                 ",
+            " copy_to               - Copy file with File::Copy a ...",
+            " croak                ",
+            " curfile               - Construct a new scalar-base ...",
+            " dirname               - Return all but the last lev ...",
+            " extname               - Return file extension of th ...",
+            " file_name_is_absolute",
+            " find                 ",
+            " getcwd               ",
+            " import               ",
+            " is_abs                - Check if the path is absolute.",
+            " list                  - List all files in the direc ...",
+            " list_tree             - List all files recursively  ...",
+            " lstat                 - Return a File::stat object  ...",
+            " make_path             - Create the directories if t ...",
+            " move                 ",
+            " move_to               - Move file with File::Copy a ...",
+            " new                   - Construct a new Mojo::File  ...",
+            " open                  - Open file with IO::File.",
+            " path                  - Construct a new scalar-base ...",
+            " realpath              - Resolve the path with Cwd a ...",
+            " rel2abs              ",
+            " remove                - Delete file.",
+            " remove_tree           - Delete this directory and a ...",
+            " sibling               - Return a new Mojo::File obj ...",
+            " slurp                 - Read all data at once from  ...",
+            " splitdir             ",
+            " spurt                 - Write all data at once to t ...",
+            " stat                  - Return a File::stat object  ...",
+            " tap                   - Alias for \"tap\" in Mojo::Base.",
+            " tempdir               - Construct a new scalar-base ...",
+            " tempfile              - Construct a new scalar-base ...",
+            " to_abs                - Return absolute path as a M ...",
+            " to_array              - Split the path on directory ...",
+            " to_rel                - Return a relative path from ...",
+            " to_string             - Stringify the path.",
+            " touch                 - Create file if it does not  ...",
+            " with_roles            - Alias for \"with_roles\" in M ...",
+        ],
+    },
 );
 
 my $is_path = qr/ ^ Path: \s* \K (.*) $ /x;
@@ -363,5 +478,5 @@ for my $case ( @cases ) {
       unless is_deeply( \@lines, $case->{expected_output}, $case->{name} );
 }
 
-done_testing( 10 );
+done_testing( 12 );
 
