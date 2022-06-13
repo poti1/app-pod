@@ -42,11 +42,11 @@ App::Pod - Quickly show available class methods and documentation.
 
 =head1 VERSION
 
-Version 0.06
+Version 0.07
 
 =cut
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 
 =head1 SYNOPSIS
@@ -703,7 +703,7 @@ sub show_methods {
 
     say _grey( "\nUse --all (or -a) to see all methods." )
       unless $self->opts->{all};
-    say "";
+    say _reset( "" );
 }
 
 #
@@ -818,6 +818,11 @@ sub _grey {
 sub _neon {
 
     colored( "@_", "RESET ON_BRIGHT_BLACK" );
+}
+
+sub _reset {
+
+    colored( "@_", "RESET" );
 }
 
 #
