@@ -247,40 +247,43 @@ sub _show_help {
     my $max = max map { $_->[2] } @all;
 
     my $options =
-      join "\n   ",
+      join "\n    ",
       map { sprintf "%-${max}s - %s", @$_[ 0, 1 ] } @all;
 
-    say <<~HELP;
+    my $help = <<~HELP;
 
-   @{[ _grey("Shows available class methods and documentation") ]}
+    ##_grey:Shows available class methods and documentation
 
-   @{[ _neon("Syntax:") ]}
-      $script module_name [method_name]
+    ##_neon:Syntax:
+        $script module_name [method_name]
 
-   @{[ _neon("Options:") ]}
-      $options
+    ##_neon:Options:
+        $options
 
-   @{[ _neon("Examples:") ]}
-      @{[ _grey("# Methods") ]}
-      $script Mojo::UserAgent
-      $script Mojo::UserAgent -a
+    ##_neon:Examples:
+        ##_grey:# Methods
+        $script Mojo::UserAgent
+        $script Mojo::UserAgent -a
 
-      @{[ _grey("# Method") ]}
-      $script Mojo::UserAgent prepare
+        ##_grey:# Method
+        $script Mojo::UserAgent prepare
 
-      @{[ _grey("# Documentation") ]}
-      $script Mojo::UserAgent -d
+        ##_grey:# Documentation
+        $script Mojo::UserAgent -d
 
-      @{[ _grey("# Edit") ]}
-      $script Mojo::UserAgent -e
-      $script Mojo::UserAgent prepare -e
+        ##_grey:# Edit
+        $script Mojo::UserAgent -e
+        $script Mojo::UserAgent prepare -e
 
-      @{[ _grey("# List all methods") ]}
-      $script Mojo::UserAgent --list_class_options
+        ##_grey:# List all methods
+        $script Mojo::UserAgent --list_class_options
 
-      @{[ _grey("# List all Module::Build actions.") ]}
-      $script Module::Build --query head1=ACTIONS/item-text
-   HELP
+        ##_grey:# List all Module::Build actions.
+        $script Module::Build --query head1=ACTIONS/item-text
+    HELP
+
+    $help =~ s/ ^ \s* \K \#\#([\w_]+): (.*) / qq($1("$2")) /gmxee;
+    say $help;
 
     return 1;
 }
