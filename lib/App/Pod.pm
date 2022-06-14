@@ -24,9 +24,13 @@ has [
       method
       opts
       non_main_options
+      cache_pod
+      cache_path
+      cache_name_and_summary
       cache_isa
       cache_events
       cache_methods
+      cache_method_and_doc
       dirty_cache
       /
 ];
@@ -368,6 +372,7 @@ a class.)
 
 sub list_class_options {
     my ( $self ) = @_;
+
     if ( not $self->class ) {
         say "";
         say _red( "Missing class name!" );
@@ -396,7 +401,7 @@ Can optionally just to a specific keyword.
 
 sub edit_class {
     my ( $self ) = @_;
-    my $path     = Pod::Query->new( $self->class, "path" )->path;
+    my $path     = $self->_get_path;
     my $method   = $self->method;
     my $cmd      = "vim $path";
 
@@ -488,6 +493,60 @@ sub _class_error {
     return 0;
 }
 
+#
+# Header
+#
+
+sub _get_path {
+    my ( $self ) = @_;
+
+    # Use in-memory cache if present.
+    my $mem_cache = $self->cache_path;
+    return $mem_cache if $mem_cache;
+
+    # Use disk cache if present.
+    my $disk_cache = $self->retrieve_cache;
+    return $disk_cache->{path} if $disk_cache and $disk_cache->{path};
+
+    # Otherwise, get the class path.
+    local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
+    my $path = $self->_get_pod->path;
+
+    # Cache it in-memory.
+    $self->cache_path( $path );
+
+    # Flag that disk cache should be stored later.
+    $self->dirty_cache( 1 );
+
+    $path;
+}
+
+sub _get_name_and_summary {
+    my ( $self ) = @_;
+
+    # Use in-memory cache if present.
+    my $mem_cache = $self->cache_name_and_summary;
+    return $mem_cache if $mem_cache;
+
+    # Use disk cache if present.
+    my $disk_cache = $self->retrieve_cache;
+    return $disk_cache->{name_and_summary}
+      if $disk_cache and $disk_cache->{name_and_summary};
+
+    # Otherwise, get all class events.
+    local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
+    my $title            = $self->_get_pod->find_title;
+    my $name_and_summary = [ split /\s*-\s*/, $title, 2 ];
+
+    # Cache it in-memory.
+    $self->cache_name_and_summary( $name_and_summary );
+
+    # Flag that disk cache should be stored later.
+    $self->dirty_cache( 1 );
+
+    $name_and_summary;
+}
+
 =head2 show_header
 
 Prints a generic header for a module.
@@ -497,7 +556,6 @@ Prints a generic header for a module.
 sub show_header {
     my ( $self )      = @_;
     my $class         = $self->class;
-    my $pod           = Pod::Query->new( $class );
     my $version       = $class->VERSION;
     my $first_release = Module::CoreList->first_release( $class );
 
@@ -516,7 +574,7 @@ sub show_header {
             ),
         ),
     );
-    my @path_line = ( _grey( "Path:" ), _grey( $pod->path ), );
+    my @path_line = ( _grey( "Path:" ), _grey( $self->_get_path ), );
 
     my $max    = max map { length } $package_line[0], $path_line[0];
     my $format = "%-${max}s %s";
@@ -526,39 +584,10 @@ sub show_header {
     _sayt sprintf( $format, @path_line );
 
     say "";
-    local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
-    my ( $name, $summary ) = split /\s*-\s*/, $pod->find_title, 2;
+    my ( $name, $summary ) = $self->_get_name_and_summary->@*;
     return unless $name and $summary;
 
     _sayt _yellow( $name ) . " - " . _green( $summary );
-    say _reset( "" );
-}
-
-=head2 show_method_doc
-
-Show documentation for a specific module method.
-
-=cut
-
-sub show_method_doc {
-    my ( $self ) = @_;
-    local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
-    my $doc = Pod::Query
-      ->new( $self->class )
-      ->find_method( $self->method );
-
-    # Color.
-    for ( $doc ) {
-        chomp;
-
-        # Headings.
-        s/ ^ \s* \K (\S+:) (?= \s* $ ) / _green($1) /xgem;
-
-        # Comments.
-        s/ (\#.+) / _grey($1) /xge;
-    }
-
-    say $doc;
     say _reset( "" );
 }
 
@@ -620,12 +649,28 @@ sub show_inheritance {
 # Events
 #
 
+sub _get_pod {
+    my ( $self ) = @_;
+
+    # Use in-memory cache if present.
+    my $pod = $self->cache_pod;
+    return $pod if $pod;
+
+    # Otherwise, make a new Pod::Query object.
+    $pod = Pod::Query->new( $self->class );
+
+    # Cache it in-memory.
+    $self->cache_pod( $pod );
+
+    $pod;
+}
+
 sub _get_events {
     my ( $self ) = @_;
 
     # Use in-memory cache if present.
-    my $events_cache = $self->cache_events;
-    return $events_cache if $events_cache;
+    my $mem_cache = $self->cache_events;
+    return $mem_cache if $mem_cache;
 
     # Use disk cache if present.
     my $disk_cache = $self->retrieve_cache;
@@ -633,9 +678,7 @@ sub _get_events {
 
     # Otherwise, get all class events.
     local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
-    my %events = Pod::Query
-      ->new( $self->class )
-      ->find_events;
+    my %events = $self->_get_pod->find_events;
 
     # Cache it in-memory.
     $self->cache_events( \%events );
@@ -682,8 +725,8 @@ sub _get_methods {
     my ( $self ) = @_;
 
     # Use in-memory cache if present.
-    my $cache = $self->cache_methods;
-    return $cache if $cache;
+    my $mem_cache = $self->cache_methods;
+    return $mem_cache if $mem_cache;
 
     # Use disk cache if present.
     my $disk_cache = $self->retrieve_cache;
@@ -692,7 +735,7 @@ sub _get_methods {
     # Otherwise, get all class methods.
     local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
     my @methods;
-    my $pod = Pod::Query->new( $self->class );
+    my $pod = $self->_get_pod;
     if ( $self->_import_class ) {
         @methods =
           map { [ $_, scalar $pod->find_method_summary( $_ ) ] }
@@ -772,6 +815,33 @@ sub show_methods {
     say _reset( "" );
 }
 
+=head2 show_method_doc
+
+Show documentation for a specific module method.
+
+=cut
+
+sub show_method_doc {
+    my ( $self ) = @_;
+
+    local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
+    my $doc = $self->_get_pod->find_method( $self->method );
+
+    # Color.
+    for ( $doc ) {
+        chomp;
+
+        # Headings.
+        s/ ^ \s* \K (\S+:) (?= \s* $ ) / _green($1) /xgem;
+
+        # Comments.
+        s/ (\#.+) / _grey($1) /xge;
+    }
+
+    say $doc;
+    say _reset( "" );
+}
+
 #
 # Caching
 #
@@ -804,11 +874,13 @@ Saves the last class name and its methods/options.
 sub store_cache {
     my ( $self ) = @_;
     my $cache = {
-        class   => $self->class,
-        events  => $self->_get_events,
-        methods => $self->_get_methods,
-        options => $self->_get_class_options,
-        isa     => $self->_get_isa,
+        class            => $self->class,
+        path             => $self->_get_path,
+        name_and_summary => $self->_get_name_and_summary,
+        isa              => $self->_get_isa,
+        events           => $self->_get_events,
+        methods          => $self->_get_methods,
+        options          => $self->_get_class_options,
     };
     my $path = path( $self->define_last_run_cache_file );
 
