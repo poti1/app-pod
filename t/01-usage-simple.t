@@ -45,6 +45,7 @@ my @cases = (
             "  --doc, -d             - View class documentation.",
             "  --edit, -e            - Edit the source code.",
             "  --all, -a             - Show all class functions.",
+            "  --flush_cache, -f     - Flush cache file(s).",
             "",
             "Examples:",
             "  # Methods",
@@ -80,6 +81,7 @@ my @cases = (
               --doc
               --dump
               --edit
+              --flush_cache
               --help
               --query
               --to
@@ -87,6 +89,7 @@ my @cases = (
               -a
               -d
               -e
+              -f
               -h
               -q
             }
