@@ -23,11 +23,11 @@ my $class = Module::Build->subclass(
 
 Add this to your bashrc file (or compatible):
 
-    [ -f $file ] && source $file
+    [ "\$(which $file)" != "" ] && source $file
 
 Or this one (if $file is not in your PATH):
 
-    [ -f $path ] && source $path
+    [ -f "$path" ] && source $path
 
 ECHO
             }
