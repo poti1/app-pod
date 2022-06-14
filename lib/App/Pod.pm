@@ -24,8 +24,10 @@ has [
       method
       opts
       non_main_options
+      cache_isa
       cache_events
       cache_methods
+      dirty_cache
       /
 ];
 
@@ -151,6 +153,8 @@ sub _init {
         $self->non_main_options( \@options );
     }
 
+    $self->dirty_cache( 1 ) if $o->{flush_cache};
+
     say "self=" . dumper $self if $o->{dump};
 }
 
@@ -193,6 +197,10 @@ sub _define_spec {
         {
             spec        => "all|a",
             description => "Show all class functions.",
+        },
+        {
+            spec        => "flush_cache|f",
+            description => "Flush cache file(s).",
         },
     );
 
@@ -351,11 +359,11 @@ sub list_class_options {
     }
 
     # Use cache if available.
-    my $cache = $self->retrieve_class();
+    my $cache = $self->retrieve_cache();
 
     # Make class specific cache if missing.
     if ( $cache->{class} ne $self->class ) {
-        $cache = $self->store_class;
+        $cache = $self->store_cache;
     }
 
     # Show possible options
@@ -439,7 +447,7 @@ sub _process_main {
         $self->show_inheritance;
         $self->show_events;
         $self->show_methods;
-        $self->store_class;
+        $self->store_cache if $self->dirty_cache;
     }
 }
 
@@ -537,6 +545,44 @@ sub show_method_doc {
     say _reset( "" );
 }
 
+#
+# INHERITANCE
+#
+
+sub _get_isa {
+    my ( $self ) = @_;
+
+    # Use in-memory cache if present.
+    my $isa_cache = $self->cache_isa;
+    return $isa_cache if $isa_cache;
+
+    # Use disk cache if present.
+    my $disk_cache = $self->retrieve_cache;
+    return $disk_cache->{isa} if $disk_cache and $disk_cache->{isa};
+
+    # Otherwise, get all class inheritance.
+    my @classes = ( $self->class );
+    my @isa;
+    my %seen;
+    {
+        no strict 'refs';
+        while ( my $class = shift @classes ) {
+            next if $seen{$class}++;    # Already saw it
+            push @isa, $class;          # Add to list.
+            eval "require $class";
+            push @classes, @{"${class}::ISA"};
+        }
+    }
+
+    # Cache it in-memory.
+    $self->cache_isa( \@isa );
+
+    # Flag that disk cache should be stored later.
+    $self->dirty_cache( 1 );
+
+    \@isa;
+}
+
 =head2 show_inheritance
 
 Show the Inheritance chain of a class/module.
@@ -545,25 +591,11 @@ Show the Inheritance chain of a class/module.
 
 sub show_inheritance {
     my ( $self ) = @_;
-    my @classes = ( $self->class );
-    my @tree;
-    my %seen;
-    no strict 'refs';
-
-    while ( my $class = shift @classes ) {
-        next if $seen{class};    # Already saw it
-        $seen{$class}++;         # Otherwise, now we did
-        push @tree, $class;      # Add to tree
-
-        eval "require $class";
-        my @isa = @{"${class}::ISA"};
-        push @classes, @isa;
-    }
-
-    my $size = @tree;
+    my $isa      = $self->_get_isa;
+    my $size     = @$isa;
     return if $size <= 1;
     say _neon( "Inheritance ($size):" );
-    say _grey( " $_" ) for @tree;
+    say _grey( " $_" ) for @$isa;
     say _reset( "" );
 }
 
@@ -574,18 +606,25 @@ sub show_inheritance {
 sub _get_events {
     my ( $self ) = @_;
 
-    # Use cached data.
-    my $cache = $self->cache_events;
-    return $cache if $cache;
+    # Use in-memory cache if present.
+    my $events_cache = $self->cache_events;
+    return $events_cache if $events_cache;
 
-    # Get all class events.
+    # Use disk cache if present.
+    my $disk_cache = $self->retrieve_cache;
+    return $disk_cache->{events} if $disk_cache and $disk_cache->{events};
+
+    # Otherwise, get all class events.
     local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
     my %events = Pod::Query
       ->new( $self->class )
       ->find_events;
 
-    # Cache it.
+    # Cache it in-memory.
     $self->cache_events( \%events );
+
+    # Flag that disk cache should be stored later.
+    $self->dirty_cache( 1 );
 
     \%events;
 }
@@ -604,7 +643,7 @@ Show any declared class events.
 sub show_events {
     my ( $self ) = @_;
     my $events   = $self->_get_events;
-    my @names    = $self->_get_event_names;
+    my @names    = sort keys %$events;
     my $size     = @names;
     return unless $size;
 
@@ -625,11 +664,15 @@ sub show_events {
 sub _get_methods {
     my ( $self ) = @_;
 
-    # Use cached data.
+    # Use in-memory cache if present.
     my $cache = $self->cache_methods;
     return $cache if $cache;
 
-    # Get all methods.
+    # Use disk cache if present.
+    my $disk_cache = $self->retrieve_cache;
+    return $disk_cache->{methods} if $disk_cache and $disk_cache->{methods};
+
+    # Otherwise, get all class methods.
     local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
     my @methods;
     my $pod = Pod::Query->new( $self->class );
@@ -639,8 +682,11 @@ sub _get_methods {
           sort ( get_full_functions( $self->class ) );
     }
 
-    # Cache it.
+    # Cache it in-memory.
     $self->cache_methods( \@methods );
+
+    # Flag that disk cache should be stored later.
+    $self->dirty_cache( 1 );
 
     \@methods;
 }
@@ -732,17 +778,20 @@ sub _get_class_options {
     [ sort $self->_get_event_names, $self->_get_method_names, ];
 }
 
-=head2 store_class
+=head2 store_cache
 
 Saves the last class name and its methods/options.
 
 =cut
 
-sub store_class {
+sub store_cache {
     my ( $self ) = @_;
     my $cache = {
         class   => $self->class,
+        events  => $self->_get_events,
+        methods => $self->_get_methods,
         options => $self->_get_class_options,
+        isa     => $self->_get_isa,
     };
     my $path = path( $self->define_last_run_cache_file );
 
@@ -752,21 +801,34 @@ sub store_class {
 
     $path->spurt( j $cache );
 
+    # Reset the flag.
+    $self->dirty_cache( 0 );
+
     $cache;
 }
 
-=head2 retrieve_class
+=head2 retrieve_cache
 
-Returns the last stored class and its options.
+Returns the last stored class cache and its options.
 
 =cut
 
-sub retrieve_class {
+sub retrieve_cache {
     my ( $self ) = @_;
+    return {} if $self->dirty_cache;
+
     my $file = $self->define_last_run_cache_file;
     return { class => '' } if not -e $file;
 
-    j path( $file )->slurp;
+    my $cache = j path( $file )->slurp;
+
+    # Wrong class.
+    if ( $cache->{class} ne $self->class ) {
+        $cache = {};
+        $self->dirty_cache( 1 );
+    }
+
+    $cache;
 }
 
 #
