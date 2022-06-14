@@ -27,17 +27,16 @@ diag( "Testing App::Pod $App::Pod::VERSION, Perl $], $^X" );
 
 my @cases = (
     {
-        name            => "No Input - Help",
-        input           => ["--help"],
+        name            => "No Input shows help",
+        input           => [""],
         expected_output => [
             "",
-            "Shows available class methods and documentation",
-            "",
             "Syntax:",
-            "  pod module_name [method_name]",
+            "  pod module_name [method_name] [options]",
             "",
             "Options:",
             "  --help, -h            - Show this help section.",
+            "  --version, -v         - Show this tool version.",
             "  --tool_options, --to  - List tool options.",
             "  --class_options, --co - Class events and methods.",
             "  --query, -q           - Run a pod query.",
@@ -48,17 +47,14 @@ my @cases = (
             "  --flush_cache, -f     - Flush cache file(s).",
             "",
             "Examples:",
-            "  # Methods",
+            "  # All or a method",
             "  pod Mojo::UserAgent",
-            "  pod Mojo::UserAgent -a",
-            "",
-            "  # Method",
             "  pod Mojo::UserAgent prepare",
             "",
             "  # Documentation",
             "  pod Mojo::UserAgent -d",
             "",
-            "  # Edit",
+            "  # Edit class or method",
             "  pod Mojo::UserAgent -e",
             "  pod Mojo::UserAgent prepare -e",
             "",
@@ -66,8 +62,52 @@ my @cases = (
             "  pod Mojo::UserAgent --class_options",
             "",
             "  # List all Module::Build actions.",
-            "  pod Module::Build --query head1=ACTIONS/item-text",
+            "  pod Module::Build --query head1=ACTIONS/item-text"
         ],
+    },
+    {
+        name            => "help",
+        input           => ["--help"],
+        expected_output => [
+            "",
+            "Syntax:",
+            "  pod module_name [method_name] [options]",
+            "",
+            "Options:",
+            "  --help, -h            - Show this help section.",
+            "  --version, -v         - Show this tool version.",
+            "  --tool_options, --to  - List tool options.",
+            "  --class_options, --co - Class events and methods.",
+            "  --query, -q           - Run a pod query.",
+            "  --dump, --dd          - Dump extra info.",
+            "  --doc, -d             - View class documentation.",
+            "  --edit, -e            - Edit the source code.",
+            "  --all, -a             - Show all class functions.",
+            "  --flush_cache, -f     - Flush cache file(s).",
+            "",
+            "Examples:",
+            "  # All or a method",
+            "  pod Mojo::UserAgent",
+            "  pod Mojo::UserAgent prepare",
+            "",
+            "  # Documentation",
+            "  pod Mojo::UserAgent -d",
+            "",
+            "  # Edit class or method",
+            "  pod Mojo::UserAgent -e",
+            "  pod Mojo::UserAgent prepare -e",
+            "",
+            "  # List all methods",
+            "  pod Mojo::UserAgent --class_options",
+            "",
+            "  # List all Module::Build actions.",
+            "  pod Module::Build --query head1=ACTIONS/item-text"
+        ],
+    },
+    {
+        name            => "version",
+        input           => ["--version"],
+        expected_output => [ "pod (App::Pod) <VERSION>", ],
     },
     {
         name            => "tool_options",
@@ -86,12 +126,14 @@ my @cases = (
               --query
               --to
               --tool_options
+              --version
               -a
               -d
               -e
               -f
               -h
               -q
+              -v
             }
         ],
     },
@@ -253,7 +295,7 @@ my @cases = (
         expected_output => [
             "",
             "Package: ojo",
-            "Path:    PATH",
+            "Path:    <PATH>",
             "",
             "ojo - Fun one-liners with Mojo",
             "",
@@ -284,7 +326,7 @@ my @cases = (
         expected_output => [
             "",
             "Package: Mojo::UserAgent",
-            "Path:    PATH",
+            "Path:    <PATH>",
             "",
             "Mojo::UserAgent - Non-blocking I/O HTTP and WebSocke ...",
             "",
@@ -344,7 +386,7 @@ my @cases = (
         expected_output => [
             "",
             "Package: Mojo::File",
-            "Path:    PATH",
+            "Path:    <PATH>",
             "",
             "Mojo::File - File system paths",
             "",
@@ -391,7 +433,7 @@ my @cases = (
         expected_output => [
             "",
             "Package: Mojo::File",
-            "Path:    PATH",
+            "Path:    <PATH>",
             "",
             "Mojo::File - File system paths",
             "",
@@ -457,9 +499,11 @@ my @cases = (
     },
 );
 
-my $is_path = qr/ ^ Path: \s* \K (.*) $ /x;
+my $is_path    = qr/ ^ Path: \s* \K (.*) $ /x;
+my $is_version = qr/ \b \d+\.\d+  $ /x;
 
 for my $case ( @cases ) {
+    my $input = join( "", $case->{input}->@* ) // "";
     local @ARGV = ( $case->{input}->@* );
     my $output;
 
@@ -474,12 +518,55 @@ for my $case ( @cases ) {
 
     # Normalize Path.
     for ( @lines ) {
-        last if s/$is_path/PATH/;
+        last if s/$is_path/<PATH>/;
     }
 
-    say dumper \@lines and last
-      unless is_deeply( \@lines, $case->{expected_output}, $case->{name} );
+    my $need = $case->{expected_output};
+    my $name = $case->{name};
+
+    # Version check
+    if ( "$input" eq "--version" ) {
+        $lines[0] =~ s/$is_version/<VERSION>/;
+    }
+
+    say dumper \@lines
+      unless is_deeply \@lines, $need, "$name";
+
+    # next unless is @lines, @$need, "$name - same size";
+
+    # my $error;
+    # my @is_have;
+    # my @is_need;
+    # my @like_have;
+    # my @like_need;
+    # for my $n ( 0 .. $#$need ) {
+    #     if( ref $need->[$n] eq ref qr// ){
+    #         push @like_have, $lines[$n];
+    #         push @like_need, $need->[$n];
+    #        $error++, last unless
+    #         like $lines[$n], $need->[$n], "$name - index=$n - same pattern";
+    #     }
+    #     else {
+    #         push @is_have, $lines[$n];
+    #         push @is_need, $need->[$n];
+    #        $error++, last unless
+    #         is $lines[$n], $need->[$n], "$name - index=$n - same string";
+    #     }
+    # }
+
+    # if (@like_have) {
+
+    # }
+
+    # if (@is_have) {
+
+    # }
+
+    # if ($error){
+    #     say dumper \@lines;
+    #     last;
+    # }
 }
 
-done_testing( 12 );
+done_testing( 14 );
 

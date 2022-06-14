@@ -44,11 +44,11 @@ App::Pod - Quickly show available class methods and documentation.
 
 =head1 VERSION
 
-Version 0.08
+Version 0.09
 
 =cut
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 
 =head1 SYNOPSIS
@@ -166,6 +166,11 @@ sub _define_spec {
             handler     => "_show_help",
         },
         {
+            spec        => "version|v",
+            description => "Show this tool version.",
+            handler     => "_show_version",
+        },
+        {
             spec        => "tool_options|to",
             description => "List tool options.",
             handler     => "list_tool_options",
@@ -228,6 +233,10 @@ sub _get_opts {
 # Non Main
 #
 
+#
+# Help
+#
+
 sub _process_non_main {
     my ( $self ) = @_;
 
@@ -252,26 +261,21 @@ sub _show_help {
 sub _define_help_template {
     <<~HELP;
 
-    ##_grey:Shows available class methods and documentation
-
     ##_neon:Syntax:
-      <SCRIPT> module_name [method_name]
+      <SCRIPT> module_name [method_name] [options]
 
     ##_neon:Options:
       <OPTIONS>
 
     ##_neon:Examples:
-      ##_grey:# Methods
+      ##_grey:# All or a method
       <SCRIPT> Mojo::UserAgent
-      <SCRIPT> Mojo::UserAgent -a
-
-      ##_grey:# Method
       <SCRIPT> Mojo::UserAgent prepare
 
       ##_grey:# Documentation
       <SCRIPT> Mojo::UserAgent -d
 
-      ##_grey:# Edit
+      ##_grey:# Edit class or method
       <SCRIPT> Mojo::UserAgent -e
       <SCRIPT> Mojo::UserAgent prepare -e
 
@@ -322,6 +326,19 @@ sub _build_help_options {
       map { sprintf "%-${max}s - %s", @$_[ 0, 1 ] } @all;
 
     $options;
+}
+
+#
+# Version
+#
+
+sub _show_version {
+    my ( $self ) = @_;
+    my $version = $self->VERSION;
+
+    say "pod (App::Pod) $version";
+
+    return 1;
 }
 
 =head2 list_tool_options
@@ -546,7 +563,7 @@ sub show_method_doc {
 }
 
 #
-# INHERITANCE
+# Inheritance
 #
 
 sub _get_isa {
@@ -815,17 +832,21 @@ Returns the last stored class cache and its options.
 
 sub retrieve_cache {
     my ( $self ) = @_;
-    return {} if $self->dirty_cache;
+    my $empty = { class => "" };
+    return $empty if $self->dirty_cache;
 
     my $file = $self->define_last_run_cache_file;
-    return { class => '' } if not -e $file;
+    if ( not -e $file ) {
+        $self->dirty_cache( 1 );
+        return $empty;
+    }
 
     my $cache = j path( $file )->slurp;
 
     # Wrong class.
     if ( $cache->{class} ne $self->class ) {
-        $cache = {};
         $self->dirty_cache( 1 );
+        return $empty;
     }
 
     $cache;
