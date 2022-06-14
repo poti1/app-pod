@@ -531,41 +531,6 @@ for my $case ( @cases ) {
 
     say dumper \@lines
       unless is_deeply \@lines, $need, "$name";
-
-    # next unless is @lines, @$need, "$name - same size";
-
-    # my $error;
-    # my @is_have;
-    # my @is_need;
-    # my @like_have;
-    # my @like_need;
-    # for my $n ( 0 .. $#$need ) {
-    #     if( ref $need->[$n] eq ref qr// ){
-    #         push @like_have, $lines[$n];
-    #         push @like_need, $need->[$n];
-    #        $error++, last unless
-    #         like $lines[$n], $need->[$n], "$name - index=$n - same pattern";
-    #     }
-    #     else {
-    #         push @is_have, $lines[$n];
-    #         push @is_need, $need->[$n];
-    #        $error++, last unless
-    #         is $lines[$n], $need->[$n], "$name - index=$n - same string";
-    #     }
-    # }
-
-    # if (@like_have) {
-
-    # }
-
-    # if (@is_have) {
-
-    # }
-
-    # if ($error){
-    #     say dumper \@lines;
-    #     last;
-    # }
 }
 
 done_testing( 14 );
