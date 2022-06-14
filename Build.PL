@@ -1,3 +1,5 @@
+#!/bin/env perl
+
 use 5.006;
 use strict;
 use warnings;
@@ -12,9 +14,28 @@ my $class = Module::Build->subclass(
                 unlink or warn $!;
             }
         }
+        sub _check_for_source_command {
+            my $file = "bashrc_pod";
+            my $path = qx(which $file);
+            chomp $path;
+            if ( not $ENV{MY_POD_CACHE} and $path ) {
+                print <<ECHO
+
+Add this to your bashrc file (or compatible):
+
+    [ -f $file ] && source $file
+
+Or this one (if $file is not in your PATH):
+
+    [ -f $path ] && source $path
+
+ECHO
+            }
+        }
         sub ACTION_install {
             my ($s) = @_;
             $s->_clear_cache;
+            $s->_check_for_source_command;
             $s->SUPER::ACTION_install;
         }
         sub ACTION_clean {
