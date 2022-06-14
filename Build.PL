@@ -4,7 +4,28 @@ use warnings;
 use Module::Build;
 Module::Build->VERSION('0.4004');
 
-my $builder = Module::Build->new(
+my $class = Module::Build->subclass(
+    code => q{
+        sub _clear_cache {
+            for ( glob "$ENV{HOME}/.cache/my_pod*.cache" ) {
+                print "Removing: $_\n";
+                unlink or warn $!;
+            }
+        }
+        sub ACTION_install {
+            my ($s) = @_;
+            $s->_clear_cache;
+            $s->SUPER::ACTION_install;
+        }
+        sub ACTION_clean {
+            my ($s) = @_;
+            $s->_clear_cache;
+            $s->SUPER::ACTION_clean;
+        }
+    },
+);
+
+my $builder = $class->new(
     module_name         => 'App::Pod',
     license             => 'artistic_2',
     dist_author         => q{Tim Potapov <tim.potapov[AT]gmail.com>},
@@ -21,7 +42,10 @@ my $builder = Module::Build->new(
         'Pod::Query' => '0.14',
         'Mojolicious' => '9.19',
     },
-    add_to_cleanup     => [ 'App-Pod-*' ],
+    add_to_cleanup     => [
+        'App-Pod-*',
+        "$ENV{HOME}/.cache/my_pod*.cache",
+    ],
 );
 
 $builder->create_build_script();
