@@ -8,8 +8,9 @@ Module::Build->VERSION('0.4004');
 
 my $class = Module::Build->subclass(
     code => q{
+        use Perl::OSType qw(os_type);
         sub _clear_cache {
-            for ( glob "$ENV{HOME}/.cache/my_pod*.cache" ) {
+            for ( glob qq("$ENV{HOME}/.cache/my_pod*.cache") ) {
                 print "Removing: $_\n";
                 unlink or warn $!;
             }
@@ -35,7 +36,7 @@ ECHO
         sub ACTION_install {
             my ($s) = @_;
             $s->_clear_cache;
-            $s->_check_for_source_command;
+            $s->_check_for_source_command if os_type eq "Unix";
             $s->SUPER::ACTION_install;
         }
         sub ACTION_clean {
