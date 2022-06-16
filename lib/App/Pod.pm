@@ -48,11 +48,11 @@ App::Pod - Quickly show available class methods and documentation.
 
 =head1 VERSION
 
-Version 0.10
+Version 0.11
 
 =cut
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 
 =head1 SYNOPSIS
@@ -175,14 +175,14 @@ sub _define_spec {
             handler     => "_show_version",
         },
         {
-            spec        => "tool_options|to",
-            description => "List tool options.",
-            handler     => "list_tool_options",
-        },
-        {
             spec        => "class_options|co",
             description => "Class events and methods.",
             handler     => "list_class_options",
+        },
+        {
+            spec        => "tool_options|to",
+            description => "List tool options.",
+            handler     => "list_tool_options",
         },
         {
             spec        => "query|q=s",
@@ -345,6 +345,10 @@ sub _show_version {
     return 1;
 }
 
+#
+# List Options
+#
+
 =head2 list_tool_options
 
 Returns a list of the possible command line options
@@ -373,12 +377,8 @@ a class.)
 sub list_class_options {
     my ( $self ) = @_;
 
-    if ( not $self->class ) {
-        say "";
-        say _red( "Missing class name!" );
-        say _reset( "" );
-        return;
-    }
+    # Stop if missing a class.
+    return 1 if not $self->class;
 
     # Use cache if available.
     my $cache = $self->retrieve_cache();
@@ -443,6 +443,9 @@ Use --dump option to show the data structure.
 
 sub query_class {
     my ( $self ) = @_;
+
+    # Stop if missing a class.
+    return 1 if not $self->class;
 
     local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
 

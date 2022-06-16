@@ -37,8 +37,8 @@ my @cases = (
             "Options:",
             "  --help, -h            - Show this help section.",
             "  --version, -v         - Show this tool version.",
-            "  --tool_options, --to  - List tool options.",
             "  --class_options, --co - Class events and methods.",
+            "  --tool_options, --to  - List tool options.",
             "  --query, -q           - Run a pod query.",
             "  --dump, --dd          - Dump extra info.",
             "  --doc, -d             - View class documentation.",
@@ -76,8 +76,8 @@ my @cases = (
             "Options:",
             "  --help, -h            - Show this help section.",
             "  --version, -v         - Show this tool version.",
-            "  --tool_options, --to  - List tool options.",
             "  --class_options, --co - Class events and methods.",
+            "  --tool_options, --to  - List tool options.",
             "  --query, -q           - Run a pod query.",
             "  --dump, --dd          - Dump extra info.",
             "  --doc, -d             - View class documentation.",
@@ -140,7 +140,7 @@ my @cases = (
     {
         name            => "class_options - No class",
         input           => ["--class_options"],
-        expected_output => [ "", "Missing class name!", ],
+        expected_output => [],
     },
     {
         name            => "class_options - Mojo::UserAgent",
@@ -211,82 +211,6 @@ my @cases = (
               websocket
               websocket_p
             }
-        ],
-    },
-    {
-        name  => "query",
-        input => [qw{ Module::Build --query head1=ACTIONS/item-text }],
-        expected_output => [
-            "build",           "clean",
-            "code",            "config_data",
-            "diff",            "dist",
-            "distcheck",       "distclean",
-            "distdir",         "distinstall",
-            "distmeta",        "distsign",
-            "disttest",        "docs",
-            "fakeinstall",     "help",
-            "html",            "install",
-            "installdeps",     "manifest",
-            "manifest_skip",   "manpages",
-            "pardist",         "ppd",
-            "ppmdist",         "prereq_data",
-            "prereq_report",   "pure_install",
-            "realclean",       "retest",
-            "skipcheck",       "test",
-            "testall",         "testcover",
-            "testdb",          "testpod",
-            "testpodcoverage", "versioninstall",
-        ],
-    },
-
-    {
-        name  => "query_dump",
-        input =>
-          [qw{ Module::Build --query head1=ACTIONS/item-text[0] --dump }],
-        expected_output => [
-            "self=bless( {",
-            "  \"args\" => [],",
-            "  \"class\" => \"Module::Build\",",
-            "  \"method\" => undef,",
-            "  \"non_main_options\" => [",
-            "    {",
-            "      \"description\" => \"Run a pod query.\",",
-            "      \"handler\" => \"query_class\",",
-            "      \"name\" => \"query\",",
-            "      \"spec\" => \"query|q=s\"",
-            "    }",
-            "  ],",
-            "  \"opts\" => {",
-            "    \"dump\" => 1,",
-            "    \"query\" => \"head1=ACTIONS/item-text[0]\"",
-            "  }",
-            "}, 'App::Pod' )",
-            "",
-            "Processing: query",
-            "DEBUG_FIND_DUMP: [",
-            "  {",
-            "    \"keep\" => 1,",
-            "    \"kids\" => [",
-            "      {",
-            "        \"tag\" => \"Para\",",
-            "        \"text\" => \"[version 0.01]\"",
-            "      },",
-            "      {",
-            "        \"tag\" => \"Para\",",
-"        \"text\" => \"If you run the Build script without any arguments, it runs the build action, which in turn runs the code and docs actions.\"",
-            "      },",
-            "      {",
-            "        \"tag\" => \"Para\",",
-"        \"text\" => \"This is analogous to the MakeMaker make all target.\"",
-            "      }",
-            "    ],",
-            "    \"prev\" => [],",
-            "    \"tag\" => \"item-text\",",
-            "    \"text\" => \"build\"",
-            "  }",
-            "]",
-            "",
-            "build",
         ],
     },
     {
@@ -378,6 +302,64 @@ my @cases = (
             " websocket_p        - Same as \"websocket\", but retur ...",
             "",
             "Use --all (or -a) to see all methods.",
+        ],
+    },
+    {
+        name            => "query",
+        input           => [qw{ Mojo::UserAgent --query head1[0]/Para }],
+        expected_output =>
+          ["Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent"],
+    },
+    {
+        name            => "query with no class",
+        input           => [qw{ --query head1[0]/Para }],
+        expected_output => [],
+    },
+    {
+        name            => "query with class at end",
+        input           => [qw{ --query head1[0]/Para Mojo::UserAgent }],
+        expected_output =>
+          ["Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent"],
+    },
+    {
+        name            => "query with class at end and method",
+        input           => [qw{ --query head1[0]/Para Mojo::UserAgent get }],
+        expected_output =>
+          ["Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent"],
+    },
+    {
+        name            => "query_dump",
+        input           => [qw{ Mojo::UserAgent --query head1[0]/Para --dump }],
+        expected_output => [
+            "self=bless( {",
+            "  \"args\" => [],",
+            "  \"class\" => \"Mojo::UserAgent\",",
+            "  \"method\" => undef,",
+            "  \"non_main_options\" => [",
+            "    {",
+            "      \"description\" => \"Run a pod query.\",",
+            "      \"handler\" => \"query_class\",",
+            "      \"name\" => \"query\",",
+            "      \"spec\" => \"query|q=s\"",
+            "    }",
+            "  ],",
+            "  \"opts\" => {",
+            "    \"dump\" => 1,",
+            "    \"query\" => \"head1[0]/Para\"",
+            "  }",
+            "}, 'App::Pod' )",
+            "",
+            "Processing: query",
+            "DEBUG_FIND_DUMP: [",
+            "  {",
+            "    \"keep\" => 1,",
+            "    \"prev\" => [],",
+            "    \"tag\" => \"Para\",",
+"    \"text\" => \"Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent\"",
+            "  }",
+            "]",
+            "",
+            "Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent"
         ],
     },
     {
@@ -514,7 +496,7 @@ for my $case ( @cases ) {
         App::Pod->run;
     }
 
-    my @lines = split /\n/, colorstrip( $output );
+    my @lines = split /\n/, colorstrip( $output // '' );
 
     # Normalize Path.
     for ( @lines ) {
@@ -533,5 +515,5 @@ for my $case ( @cases ) {
       unless is_deeply \@lines, $need, "$name";
 }
 
-done_testing( 14 );
+done_testing( 17 );
 
