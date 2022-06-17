@@ -23,7 +23,8 @@ has [
       args
       method
       opts
-      non_main_options
+      core_flags
+      non_main_flags
       cache_pod
       cache_path
       cache_name_and_summary
@@ -120,9 +121,10 @@ Or just use the included script:
 sub run {
     my $self = __PACKAGE__->_new;
 
-    return if $self->_class_error;
+    return if $self->_process_core_flags;
+    return if $self->_abort;
 
-    if ( $self->non_main_options ) {
+    if ( $self->non_main_flags->@* ) {
         $self->_process_non_main;
     }
     else {
@@ -141,6 +143,10 @@ sub _new {
 
 sub _init {
     my ( $self ) = @_;
+
+    # Show help when no input.
+    @ARGV = ( "--help" ) if not @ARGV;
+
     my $o = _get_opts();
     my ( $class, @args ) = @ARGV;
 
@@ -149,83 +155,70 @@ sub _init {
     $self->args( \@args );
     $self->method( $args[0] );
 
-    # Get non main options.
-    my @options = grep {    # Options
-        $o->{ $_->{name} }     # that are used
-          and $_->{handler}    # and have a handler.
-    } _define_spec();
+    my @core_flags;
+    my @non_main_flags;
 
-    if ( @options ) {
-        $self->non_main_options( \@options );
+    for ( $self->_define_spec() ) {
+
+        # We are using the option and it has a handler.
+        next unless $o->{ $_->{name} } and $_->{handler};
+
+        if ( $_->{core} ) {
+            push @core_flags, $_;
+        }
+        else {
+            push @non_main_flags, $_;
+        }
     }
 
+    # Core flags.
+    # These do not need any error checks
+    # and will be processed early.
+    $self->core_flags( \@core_flags );
+
+    # Non main flags.
+    # These are features separate from the main program.
+    $self->non_main_flags( \@non_main_flags );
+
+    # Explicitly force getting the real data.
     $self->dirty_cache( 1 ) if $o->{flush_cache};
 
     say "self=" . dumper $self if $o->{dump};
 }
 
-sub _class_error {
-    my ( $self ) = @_;
-    my $class = $self->class;
-
-    if ( not $class ) {
-        $self->_show_help();
-        return 1;
-    }
-
-    # No wierd class names.
-    if ( $class !~ / ^ [ \w_: ]+ $ /x ) {
-        if ( not $self->opts->{no_error} ) {
-            say "";
-            say _red( "Invalid class name: $class" );
-            say _reset( "" );
-        }
-        return 1;
-    }
-
-    # Make sure the path is not empty (error signal from Pod::Query).
-    if ( not $self->_get_path ) {
-        if ( not $self->opts->{no_error} ) {
-            say "";
-            say _red( "Class not found: $class" );
-            say _reset( "" );
-        }
-        return 1;
-    }
-
-    return 0;
-}
+# Spec
 
 sub _define_spec {
     my @spec = (
+
+        # If given a handler, will be auto processed.
+        # Core options will be processed early.
+
+        # Core.
         {
             spec        => "help|h",
             description => "Show this help section.",
             handler     => "_show_help",
+            core        => 1,
         },
         {
             spec        => "version|v",
             description => "Show this tool version.",
             handler     => "_show_version",
-        },
-        {
-            spec        => "class_options|co",
-            description => "Class events and methods.",
-            handler     => "list_class_options",
+            core        => 1,
         },
         {
             spec        => "tool_options|to",
             description => "List tool options.",
             handler     => "list_tool_options",
+            core        => 1,
         },
+
+        # Non main.
         {
-            spec        => "query|q=s",
-            description => "Run a pod query.",
-            handler     => "query_class",
-        },
-        {
-            spec        => "dump|dd",
-            description => "Dump extra info.",
+            spec        => "class_options|co",
+            description => "Class events and methods.",
+            handler     => "list_class_options",
         },
         {
             spec        => "doc|d",
@@ -236,6 +229,16 @@ sub _define_spec {
             spec        => "edit|e",
             description => "Edit the source code.",
             handler     => "edit_class",
+        },
+        {
+            spec        => "query|q=s",
+            description => "Run a pod query.",
+            handler     => "query_class",
+        },
+        {
+            spec        => "dump|dd",
+            description => "Dump extra info.",
+            core        => 1,
         },
         {
             spec        => "all|a",
@@ -249,6 +252,7 @@ sub _define_spec {
             spec        => "flush_cache|f",
             description => "Flush cache file(s).",
         },
+
     );
 
     # Add the name.
@@ -288,22 +292,22 @@ sub _get_pod {
 }
 
 #
-# Non Main
+# Core
 #
 
-#
-# Help
-#
-
-sub _process_non_main {
+sub _process_core_flags {
     my ( $self ) = @_;
 
-    for ( $self->non_main_options->@* ) {
+    for ( $self->core_flags->@* ) {
         say "Processing: $_->{name}" if $self->opts->{dump};
         my $handler = $_->{handler};
-        last if $self->$handler;
+        return 1 if $self->$handler;
     }
+
+    return 0;
 }
+
+# Help
 
 sub _show_help {
     my ( $self ) = @_;
@@ -386,9 +390,7 @@ sub _build_help_options {
     $options;
 }
 
-#
 # Version
-#
 
 sub _show_version {
     my ( $self ) = @_;
@@ -399,9 +401,7 @@ sub _show_version {
     return 1;
 }
 
-#
-# List Options
-#
+# List
 
 =head2 list_tool_options
 
@@ -411,12 +411,98 @@ to this tool.
 =cut
 
 sub list_tool_options {
+    my ( $self ) = @_;
+
     say
       for sort
       map { length( $_ ) == 1 ? "-$_" : "--$_"; }
       map { s/=\w+$//r }                            # Options which take values.
       map { split /\|/ } _get_spec_list();
+
+    # Abort if not using also --class_options.
+    not $self->opts->{class_options};
 }
+
+#
+# Abort
+#
+
+sub _abort {
+    my ( $self ) = @_;
+    my $class = $self->class;
+
+    if ( not $class ) {
+        if ( not $self->opts->{no_error} ) {
+            say "";
+            say _red( "Class name not provided!" );
+            say _reset( "" );
+        }
+        return 1;
+    }
+
+    # No wierd class names.
+    if ( $class !~ / ^ [ \w_: ]+ $ /x ) {
+        if ( not $self->opts->{no_error} ) {
+            say "";
+            say _red( "Invalid class name: $class" );
+            say _reset( "" );
+        }
+        return 1;
+    }
+
+    # Make sure the path is not empty (error signal from Pod::Query).
+    if ( not $self->_get_path ) {
+        if ( not $self->opts->{no_error} ) {
+            say "";
+            say _red( "Class not found: $class" );
+            say _reset( "" );
+        }
+        return 1;
+    }
+
+    return 0;
+}
+
+sub _get_path {
+    my ( $self ) = @_;
+
+    # Use in-memory cache if present.
+    my $mem_cache = $self->cache_path;
+    return $mem_cache if $mem_cache;
+
+    # Use disk cache if present.
+    my $disk_cache = $self->retrieve_cache;
+    return $disk_cache->{path} if $disk_cache and $disk_cache->{path};
+
+    # Otherwise, get the class path.
+    local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
+    my $path = $self->_get_pod->path;
+
+    # Cache it in-memory.
+    $self->cache_path( $path );
+
+    # Flag that disk cache should be stored later.
+    $self->dirty_cache( 1 );
+
+    $path;
+}
+
+#
+# Non Main
+#
+
+sub _process_non_main {
+    my ( $self ) = @_;
+    say "_process_non_main()" if $self->opts->{dump};
+
+    for ( $self->non_main_flags->@* ) {
+        say "Processing: $_->{name}" if $self->opts->{dump};
+        my $handler = $_->{handler};
+        return 1 if $self->$handler;
+    }
+}
+
+# List
 
 =head2 list_class_options
 
@@ -442,6 +528,8 @@ sub list_class_options {
     # Show possible options
     say for $cache->{options}->@*;
 }
+
+# Edit
 
 =head2 edit_class
 
@@ -469,6 +557,8 @@ sub edit_class {
     exec $cmd;
 }
 
+# Doc
+
 =head2 doc_class
 
 Show the documentation for a module using perldoc.
@@ -482,6 +572,8 @@ sub doc_class {
 
     exec "perldoc @args $class";
 }
+
+# Query
 
 =head2 query_class
 
@@ -506,6 +598,7 @@ sub query_class {
 
 sub _process_main {
     my ( $self ) = @_;
+    say "_process_main()" if $self->opts->{dump};
 
     # Go on.
     $self->show_header;
@@ -520,33 +613,7 @@ sub _process_main {
     }
 }
 
-#
 # Header
-#
-
-sub _get_path {
-    my ( $self ) = @_;
-
-    # Use in-memory cache if present.
-    my $mem_cache = $self->cache_path;
-    return $mem_cache if $mem_cache;
-
-    # Use disk cache if present.
-    my $disk_cache = $self->retrieve_cache;
-    return $disk_cache->{path} if $disk_cache and $disk_cache->{path};
-
-    # Otherwise, get the class path.
-    local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
-    my $path = $self->_get_pod->path;
-
-    # Cache it in-memory.
-    $self->cache_path( $path );
-
-    # Flag that disk cache should be stored later.
-    $self->dirty_cache( 1 );
-
-    $path;
-}
 
 sub _get_name_and_summary {
     my ( $self ) = @_;
@@ -618,9 +685,7 @@ sub show_header {
     say _reset( "" );
 }
 
-#
 # Inheritance
-#
 
 sub _get_isa {
     my ( $self ) = @_;
@@ -672,9 +737,7 @@ sub show_inheritance {
     say _reset( "" );
 }
 
-#
 # Events
-#
 
 sub _get_events {
     my ( $self ) = @_;
@@ -728,9 +791,7 @@ sub show_events {
     say _reset( "" );
 }
 
-#
 # Methods
-#
 
 sub _get_methods {
     my ( $self ) = @_;

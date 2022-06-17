@@ -64,7 +64,7 @@ _tab__pod(){
    local prev="${COMP_WORDS[COMP_CWORD-1]}"
    local cur="${COMP_WORDS[COMP_CWORD]}"
 
-   if [[ $cur =~ -* ]]; then                    # Option
+   if [[ $cur =~ ^- ]]; then                    # Option
        words=$(pod --tool_options)
    elif [[ "$prev" =~ ^-+q(uery)?$ ]]; then     # --query
        return                                   # Since it can be anything.

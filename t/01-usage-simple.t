@@ -26,9 +26,11 @@ diag( "Testing App::Pod $App::Pod::VERSION, Perl $], $^X" );
 }
 
 my @cases = (
+
+    # --help
     {
         name            => "No Input shows help",
-        input           => [""],
+        input           => [],
         expected_output => [
             "",
             "Syntax:",
@@ -37,13 +39,14 @@ my @cases = (
             "Options:",
             "  --help, -h            - Show this help section.",
             "  --version, -v         - Show this tool version.",
-            "  --class_options, --co - Class events and methods.",
             "  --tool_options, --to  - List tool options.",
-            "  --query, -q           - Run a pod query.",
-            "  --dump, --dd          - Dump extra info.",
+            "  --class_options, --co - Class events and methods.",
             "  --doc, -d             - View class documentation.",
             "  --edit, -e            - Edit the source code.",
+            "  --query, -q           - Run a pod query.",
+            "  --dump, --dd          - Dump extra info.",
             "  --all, -a             - Show all class functions.",
+            '  --no_error            - Suppress some error message.',
             "  --flush_cache, -f     - Flush cache file(s).",
             "",
             "Examples:",
@@ -67,7 +70,7 @@ my @cases = (
     },
     {
         name            => "help",
-        input           => ["--help"],
+        input           => [qw( --help )],
         expected_output => [
             "",
             "Syntax:",
@@ -76,13 +79,14 @@ my @cases = (
             "Options:",
             "  --help, -h            - Show this help section.",
             "  --version, -v         - Show this tool version.",
-            "  --class_options, --co - Class events and methods.",
             "  --tool_options, --to  - List tool options.",
-            "  --query, -q           - Run a pod query.",
-            "  --dump, --dd          - Dump extra info.",
+            "  --class_options, --co - Class events and methods.",
             "  --doc, -d             - View class documentation.",
             "  --edit, -e            - Edit the source code.",
+            "  --query, -q           - Run a pod query.",
+            "  --dump, --dd          - Dump extra info.",
             "  --all, -a             - Show all class functions.",
+            '  --no_error            - Suppress some error message.',
             "  --flush_cache, -f     - Flush cache file(s).",
             "",
             "Examples:",
@@ -104,14 +108,18 @@ my @cases = (
             "  pod Module::Build --query head1=ACTIONS/item-text"
         ],
     },
+
+    # --version
     {
         name            => "version",
-        input           => ["--version"],
+        input           => [qw( --version )],
         expected_output => [ "pod (App::Pod) <VERSION>", ],
     },
+
+    # --tool_options
     {
         name            => "tool_options",
-        input           => ["--tool_options"],
+        input           => [qw( --tool_options )],
         expected_output => [
             qw {
               --all
@@ -123,6 +131,7 @@ my @cases = (
               --edit
               --flush_cache
               --help
+              --no_error
               --query
               --to
               --tool_options
@@ -137,14 +146,22 @@ my @cases = (
             }
         ],
     },
+
+    # --class_options
     {
         name            => "class_options - No class",
-        input           => ["--class_options"],
+        input           => [qw( --class_options )],
+        expected_output => [ "", "Class name not provided!", ],
+    },
+    {
+        name            => "class_options - No class, no_error",
+        input           => [qw( --class_options --no_error )],
         expected_output => [],
     },
     {
-        name            => "class_options - Mojo::UserAgent",
-        input           => [ "Mojo::UserAgent", "--class_options" ],
+        name =>
+          "class_options - Mojo::UserAgent (flush to avoid last run cache)",
+        input           => [qw( Mojo::UserAgent --class_options --flush )],
         expected_output => [
             qw{
               BEGIN
@@ -215,12 +232,135 @@ my @cases = (
     },
     {
         name            => "class_options - Mojo::UserAgent2",
-        input           => [ "Mojo::UserAgent2", "--class_options" ],
-        expected_output => [ 'Missing: pod_class=Mojo::UserAgent2', ],
+        input           => [qw( Mojo::UserAgent2 --class_options )],
+        expected_output => [ "", "Class not found: Mojo::UserAgent2" ],
+    },
+
+    # --class_options --tool_options
+    {
+        name            => "class_options, tool_options - No class",
+        input           => [qw( --class_options --tool_options )],
+        expected_output => [
+            "--all",          "--class_options",
+            "--co",           "--dd",
+            "--doc",          "--dump",
+            "--edit",         "--flush_cache",
+            "--help",         "--no_error",
+            "--query",        "--to",
+            "--tool_options", "--version",
+            "-a",             "-d",
+            "-e",             "-f",
+            "-h",             "-q",
+            "-v",             "",
+            "Class name not provided!"
+        ],
     },
     {
+        name            => "class_options, tool_options - No class, no_error",
+        input           => [qw( --class_options --tool_options --no_error )],
+        expected_output => [
+            "--all",          "--class_options",
+            "--co",           "--dd",
+            "--doc",          "--dump",
+            "--edit",         "--flush_cache",
+            "--help",         "--no_error",
+            "--query",        "--to",
+            "--tool_options", "--version",
+            "-a",             "-d",
+            "-e",             "-f",
+            "-h",             "-q",
+            "-v",
+        ],
+    },
+    {
+        name  => "class_options, tool_options - Mojo::UserAgent",
+        input => [qw( Mojo::UserAgent --class_options --tool_options )],
+        expected_output => [
+            "--all",              "--class_options",
+            "--co",               "--dd",
+            "--doc",              "--dump",
+            "--edit",             "--flush_cache",
+            "--help",             "--no_error",
+            "--query",            "--to",
+            "--tool_options",     "--version",
+            "-a",                 "-d",
+            "-e",                 "-f",
+            "-h",                 "-q",
+            "-v",                 "BEGIN",
+            "DEBUG",              "DESTROY",
+            "ISA",                "__ANON__",
+            "_cleanup",           "_connect",
+            "_connect_proxy",     "_connection",
+            "_dequeue",           "_error",
+            "_finish",            "_process",
+            "_read",              "_redirect",
+            "_remove",            "_reuse",
+            "_start",             "_url",
+            "_write",             "build_tx",
+            "build_websocket_tx", "ca",
+            "cert",               "connect_timeout",
+            "cookie_jar",         "delete",
+            "delete_p",           "get",
+            "get_p",              "has",
+            "head",               "head_p",
+            "import",             "inactivity_timeout",
+            "insecure",           "ioloop",
+            "key",                "max_connections",
+            "max_redirects",      "max_response_size",
+            "monkey_patch",       "options",
+            "options_p",          "patch",
+            "patch_p",            "post",
+            "post_p",             "prepare",
+            "proxy",              "put",
+            "put_p",              "request_timeout",
+            "server",             "socket_options",
+            "start",              "start",
+            "start_p",            "term_escape",
+            "transactor",         "weaken",
+            "websocket",          "websocket_p"
+        ],
+    },
+    {
+        name  => "class_options, tool_options - Mojo::UserAgent2",
+        input => [qw( Mojo::UserAgent2 --class_options --tool_options )],
+        expected_output => [
+            "--all",          "--class_options",
+            "--co",           "--dd",
+            "--doc",          "--dump",
+            "--edit",         "--flush_cache",
+            "--help",         "--no_error",
+            "--query",        "--to",
+            "--tool_options", "--version",
+            "-a",             "-d",
+            "-e",             "-f",
+            "-h",             "-q",
+            "-v",             "",
+            'Class not found: Mojo::UserAgent2'
+        ],
+    },
+    {
+        name  => "class_options, tool_options - Mojo::UserAgent2, no_error",
+        input =>
+          [qw( Mojo::UserAgent2 --class_options --tool_options --no_error )],
+        expected_output => [
+            "--all",          "--class_options",
+            "--co",           "--dd",
+            "--doc",          "--dump",
+            "--edit",         "--flush_cache",
+            "--help",         "--no_error",
+            "--query",        "--to",
+            "--tool_options", "--version",
+            "-a",             "-d",
+            "-e",             "-f",
+            "-h",             "-q",
+            "-v",
+        ],
+    },
+
+    # class
+    {
         name            => "Module - ojo",
-        input           => ["ojo"],
+        input           => [qw( ojo )],
         expected_output => [
             "",
             "Package: ojo",
@@ -251,7 +391,7 @@ my @cases = (
     },
     {
         name            => "Module - Mojo::UserAgent",
-        input           => ["Mojo::UserAgent"],
+        input           => [qw( Mojo::UserAgent )],
         expected_output => [
             "",
             "Package: Mojo::UserAgent",
@@ -309,38 +449,53 @@ my @cases = (
             "Use --all (or -a) to see all methods.",
         ],
     },
+
+    # --query bad
+    {
+        name            => "query with no class",
+        input           => [qw( --query head1[0]/Para )],
+        expected_output => [ "", "Class name not provided!" ],
+    },
+    {
+        name            => "query with no class",
+        input           => [qw( --query head1[0]/Para )],
+        expected_output => [ "", "Class name not provided!" ],
+    },
+    {
+        name            => "query with bad class",
+        input           => [qw( ojo2 --query head1[0]/Para )],
+        expected_output => [ "", "Class not found: ojo2" ],
+    },
+
+    # --query good
     {
         name            => "query",
-        input           => [qw{ Mojo::UserAgent --query head1[0]/Para }],
+        input           => [qw( Mojo::UserAgent --query head1[0]/Para )],
         expected_output =>
           ["Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent"],
     },
     {
-        name            => "query with no class",
-        input           => [qw{ --query head1[0]/Para }],
-        expected_output => [],
-    },
-    {
         name            => "query with class at end",
-        input           => [qw{ --query head1[0]/Para Mojo::UserAgent }],
+        input           => [qw( --query head1[0]/Para Mojo::UserAgent )],
         expected_output =>
           ["Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent"],
     },
     {
         name            => "query with class at end and method",
-        input           => [qw{ --query head1[0]/Para Mojo::UserAgent get }],
+        input           => [qw( --query head1[0]/Para Mojo::UserAgent get )],
         expected_output =>
           ["Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent"],
     },
     {
         name            => "query_dump",
-        input           => [qw{ Mojo::UserAgent --query head1[0]/Para --dump }],
+        input           => [qw( Mojo::UserAgent --query head1[0]/Para --dump )],
         expected_output => [
             "self=bless( {",
             "  \"args\" => [],",
             "  \"class\" => \"Mojo::UserAgent\",",
+            "  \"core_flags\" => [],",
             "  \"method\" => undef,",
-            "  \"non_main_options\" => [",
+            "  \"non_main_flags\" => [",
             "    {",
             "      \"description\" => \"Run a pod query.\",",
             "      \"handler\" => \"query_class\",",
@@ -354,6 +509,7 @@ my @cases = (
             "  }",
             "}, 'App::Pod' )",
             "",
+            "_process_non_main()",
             "Processing: query",
             "DEBUG_FIND_DUMP: [",
             "  {",
@@ -369,7 +525,7 @@ my @cases = (
     },
     {
         name            => "Module - Mojo::File",
-        input           => ["Mojo::File"],
+        input           => [qw( Mojo::File )],
         expected_output => [
             "",
             "Package: Mojo::File",
@@ -416,7 +572,7 @@ my @cases = (
     },
     {
         name            => "Module - Mojo::File --all",
-        input           => [qw(Mojo::File --all)],
+        input           => [qw( Mojo::File --all )],
         expected_output => [
             "",
             "Package: Mojo::File",
@@ -526,5 +682,5 @@ for my $case ( @cases ) {
       unless is_deeply \@lines, $need, "$name";
 }
 
-done_testing( 18 );
+done_testing( 26 );
 
