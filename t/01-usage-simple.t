@@ -214,6 +214,14 @@ my @cases = (
         ],
     },
     {
+        name            => "class_options - Mojo::UserAgent2",
+        input           => [ "Mojo::UserAgent2", "--class_options" ],
+        expected_output => [
+            'No documentation found for "Mojo::UserAgent2".',
+            'Missing: pod_class=Mojo::UserAgent2',
+        ],
+    },
+    {
         name            => "Module - ojo",
         input           => ["ojo"],
         expected_output => [
@@ -492,8 +500,11 @@ for my $case ( @cases ) {
     # Capture STDOUT.
     {
         local *STDOUT;
-        open STDOUT, ">", \$output or die $!;
-        App::Pod->run;
+        local *STDERR;
+        local $SIG{__DIE__} = sub{ print STDERR "@_" };
+        open STDOUT, ">",  \$output or die $!;
+        open STDERR, ">>", \$output or die $!;
+        eval{ App::Pod->run };
     }
 
     my @lines = split /\n/, colorstrip( $output // '' );
@@ -515,5 +526,5 @@ for my $case ( @cases ) {
       unless is_deeply \@lines, $need, "$name";
 }
 
-done_testing( 17 );
+done_testing( 18 );
 
