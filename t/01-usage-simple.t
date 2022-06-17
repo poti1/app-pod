@@ -501,10 +501,10 @@ for my $case ( @cases ) {
     {
         local *STDOUT;
         local *STDERR;
-        local $SIG{__DIE__} = sub{ print STDERR "@_" };
+        local $SIG{__DIE__} = sub { print STDERR "@_" };
         open STDOUT, ">",  \$output or die $!;
         open STDERR, ">>", \$output or die $!;
-        eval{ App::Pod->run };
+        eval { App::Pod->run };
     }
 
     my @lines = split /\n/, colorstrip( $output // '' );

@@ -61,7 +61,7 @@ my $builder = $class->new(
     },
     requires => {
         'Module::Functions' => '2.1.3',
-        'Pod::Query' => '0.14',
+        'Pod::Query' => '0.15',
         'Mojolicious' => '9.19',
     },
     add_to_cleanup     => [
