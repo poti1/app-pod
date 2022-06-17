@@ -120,6 +120,8 @@ Or just use the included script:
 sub run {
     my $self = __PACKAGE__->_new;
 
+    return if $self->_class_error;
+
     if ( $self->non_main_options ) {
         $self->_process_non_main;
     }
@@ -160,6 +162,38 @@ sub _init {
     $self->dirty_cache( 1 ) if $o->{flush_cache};
 
     say "self=" . dumper $self if $o->{dump};
+}
+
+sub _class_error {
+    my ( $self ) = @_;
+    my $class = $self->class;
+
+    if ( not $class ) {
+        $self->_show_help();
+        return 1;
+    }
+
+    # No wierd class names.
+    if ( $class !~ / ^ [ \w_: ]+ $ /x ) {
+        if ( not $self->opts->{no_error} ) {
+            say "";
+            say _red( "Invalid class name: $class" );
+            say _reset( "" );
+        }
+        return 1;
+    }
+
+    # Make sure the path is not empty (error signal from Pod::Query).
+    if ( not $self->_get_path ) {
+        if ( not $self->opts->{no_error} ) {
+            say "";
+            say _red( "Class not found: $class" );
+            say _reset( "" );
+        }
+        return 1;
+    }
+
+    return 0;
 }
 
 sub _define_spec {
@@ -208,6 +242,10 @@ sub _define_spec {
             description => "Show all class functions.",
         },
         {
+            spec        => "no_error",
+            description => "Suppress some error message.",
+        },
+        {
             spec        => "flush_cache|f",
             description => "Flush cache file(s).",
         },
@@ -228,7 +266,7 @@ sub _get_spec_list {
 sub _get_opts {
     my $opts = {};
 
-    GetOptions( $opts, _get_spec_list() ) or die $!;
+    GetOptions( $opts, _get_spec_list() ) or die "$!\n";
 
     $opts;
 }
@@ -393,9 +431,6 @@ a class.)
 sub list_class_options {
     my ( $self ) = @_;
 
-    # Stop if missing a class.
-    return 1 if not $self->class;
-
     # Use cache if available.
     my $cache = $self->retrieve_cache();
 
@@ -460,14 +495,9 @@ Use --dump option to show the data structure.
 sub query_class {
     my ( $self ) = @_;
 
-    # Stop if missing a class.
-    return 1 if not $self->class;
-
     local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
 
-    say for Pod::Query
-      ->new( $self->class )
-      ->find( $self->opts->{query} );
+    say for $self->_get_pod->find( $self->opts->{query} );
 }
 
 #
@@ -476,8 +506,6 @@ sub query_class {
 
 sub _process_main {
     my ( $self ) = @_;
-
-    return if $self->_class_error;
 
     # Go on.
     $self->show_header;
@@ -490,26 +518,6 @@ sub _process_main {
         $self->show_methods;
         $self->store_cache if $self->dirty_cache;
     }
-}
-
-sub _class_error {
-    my ( $self ) = @_;
-    my $class = $self->class;
-
-    if ( not $class ) {
-        $self->_show_help();
-        return 1;
-    }
-
-    # No wierd class names.
-    if ( $class !~ / ^ [ \w_: ]+ $ /x ) {
-        say "";
-        say _red( "Invalid class name: $class" );
-        say _reset( "" );
-        return 1;
-    }
-
-    return 0;
 }
 
 #

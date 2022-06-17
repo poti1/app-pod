@@ -3,6 +3,9 @@
 export MY_CACHE_DIR="$HOME/.cache"
 export MY_POD_CACHE="$MY_CACHE_DIR/my_pod_clases.cache"
 
+# Colon should not be a word break in perl.
+export COMP_WORDBREAKS=${COMP_WORDBREAKS//:}
+
 _tab__pod_make_class_cache(){
    _tab__pod_get_modules_list  > "$MY_POD_CACHE"
    pod --tool_options         >> "$MY_POD_CACHE"
@@ -45,16 +48,13 @@ _tab__pod_get_command(){
             print q(cat $MY_POD_CACHE);
         }
         elsif($cnt == 2){
-            print qq(pod $class --class_options --tool_options);
+            print qq(pod $class --class_options --tool_options --no_error);
         }
         else{
             print q(pod --tool_options);
         }
    ' -- "$@"
 }
-
-# Colon should not be a word break in perl.
-export COMP_WORDBREAKS=${COMP_WORDBREAKS//:}
 
 _tab__pod(){
    if [ ! -e "$MY_POD_CACHE" ]; then
@@ -64,10 +64,10 @@ _tab__pod(){
    local prev="${COMP_WORDS[COMP_CWORD-1]}"
    local cur="${COMP_WORDS[COMP_CWORD]}"
 
-   if [[ $cur == -* ]]; then
+   if [[ $cur =~ -* ]]; then                    # Option
        words=$(pod --tool_options)
-   elif [[ "$prev" =~ ^-+q(uery)?$ ]]; then
-       return               # Since it can be anything.
+   elif [[ "$prev" =~ ^-+q(uery)?$ ]]; then     # --query
+       return                                   # Since it can be anything.
    else
        # Filter out script name, options, and query value.
        # Then count how many arguments remain.
