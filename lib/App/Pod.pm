@@ -48,11 +48,11 @@ App::Pod - Quickly show available class methods and documentation.
 
 =head1 VERSION
 
-Version 0.11
+Version 0.12
 
 =cut
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 
 =head1 SYNOPSIS
@@ -231,6 +231,22 @@ sub _get_opts {
     GetOptions( $opts, _get_spec_list() ) or die $!;
 
     $opts;
+}
+
+sub _get_pod {
+    my ( $self ) = @_;
+
+    # Use in-memory cache if present.
+    my $pod = $self->cache_pod;
+    return $pod if $pod;
+
+    # Otherwise, make a new Pod::Query object.
+    $pod = Pod::Query->new( $self->class );
+
+    # Cache it in-memory.
+    $self->cache_pod( $pod );
+
+    $pod;
 }
 
 #
@@ -651,22 +667,6 @@ sub show_inheritance {
 #
 # Events
 #
-
-sub _get_pod {
-    my ( $self ) = @_;
-
-    # Use in-memory cache if present.
-    my $pod = $self->cache_pod;
-    return $pod if $pod;
-
-    # Otherwise, make a new Pod::Query object.
-    $pod = Pod::Query->new( $self->class );
-
-    # Cache it in-memory.
-    $self->cache_pod( $pod );
-
-    $pod;
-}
 
 sub _get_events {
     my ( $self ) = @_;

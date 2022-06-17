@@ -20,7 +20,7 @@ diag( "Testing App::Pod $App::Pod::VERSION, Perl $], $^X" );
 
     # Make sure this is already defined a a number.
     like( Pod::Query::get_term_width(),
-        qr/^\d+$/, "get_term_width eturns a number" );
+        qr/^\d+$/, "get_term_width returns a number" );
 
     *Pod::Query::get_term_width = sub { 56 };    # Match android.
 }
@@ -216,10 +216,7 @@ my @cases = (
     {
         name            => "class_options - Mojo::UserAgent2",
         input           => [ "Mojo::UserAgent2", "--class_options" ],
-        expected_output => [
-            'No documentation found for "Mojo::UserAgent2".',
-            'Missing: pod_class=Mojo::UserAgent2',
-        ],
+        expected_output => [ 'Missing: pod_class=Mojo::UserAgent2', ],
     },
     {
         name            => "Module - ojo",
@@ -495,19 +492,22 @@ my $is_version = qr/ \b \d+\.\d+  $ /x;
 for my $case ( @cases ) {
     my $input = join( "", $case->{input}->@* ) // "";
     local @ARGV = ( $case->{input}->@* );
-    my $output;
+    my $out = "";
 
-    # Capture STDOUT.
+    # Capture output.
     {
         local *STDOUT;
         local *STDERR;
-        local $SIG{__DIE__} = sub { print STDERR "@_" };
-        open STDOUT, ">",  \$output or die $!;
-        open STDERR, ">>", \$output or die $!;
+        open STDOUT, ">",  \$out or die $!;
+        open STDERR, ">>", \$out or die $!;
         eval { App::Pod->run };
+        if ( $@ ) {
+            $out = $@;
+            chomp $out;
+        }
     }
 
-    my @lines = split /\n/, colorstrip( $output // '' );
+    my @lines = split /\n/, colorstrip( $out // '' );
 
     # Normalize Path.
     for ( @lines ) {
