@@ -44,7 +44,7 @@ my @cases = (
             "  --doc, -d             - View class documentation.",
             "  --edit, -e            - Edit the source code.",
             "  --query, -q           - Run a pod query.",
-            "  --dump, --dd          - Dump extra info.",
+            "  --dump, --dd          - Dump extra info (adds up).",
             "  --all, -a             - Show all class functions.",
             '  --no_error            - Suppress some error message.',
             "  --flush_cache, -f     - Flush cache file(s).",
@@ -84,7 +84,7 @@ my @cases = (
             "  --doc, -d             - View class documentation.",
             "  --edit, -e            - Edit the source code.",
             "  --query, -q           - Run a pod query.",
-            "  --dump, --dd          - Dump extra info.",
+            "  --dump, --dd          - Dump extra info (adds up).",
             "  --all, -a             - Show all class functions.",
             '  --no_error            - Suppress some error message.',
             "  --flush_cache, -f     - Flush cache file(s).",
@@ -490,8 +490,21 @@ my @cases = (
         name            => "query_dump",
         input           => [qw( Mojo::UserAgent --query head1[0]/Para --dump )],
         expected_output => [
-            "self=bless( {",
+            "_process_non_main()",
+            "Processing: query",
+            "DEBUG_FIND_DUMP: [",
+            "  {",
+            "    \"keep\" => 1,",
+            "    \"prev\" => [],",
+            "    \"tag\" => \"Para\",",
+"    \"text\" => \"Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent\"",
+            "  }",
+            "]",
+            "",
+            "Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent",
+            "self={",
             "  \"args\" => [],",
+            "  \"cache_path\" => \"PATH\",",
             "  \"class\" => \"Mojo::UserAgent\",",
             "  \"core_flags\" => [],",
             "  \"method\" => undef,",
@@ -507,20 +520,7 @@ my @cases = (
             "    \"dump\" => 1,",
             "    \"query\" => \"head1[0]/Para\"",
             "  }",
-            "}, 'App::Pod' )",
-            "",
-            "_process_non_main()",
-            "Processing: query",
-            "DEBUG_FIND_DUMP: [",
-            "  {",
-            "    \"keep\" => 1,",
-            "    \"prev\" => [],",
-            "    \"tag\" => \"Para\",",
-"    \"text\" => \"Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent\"",
-            "  }",
-            "]",
-            "",
-            "Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent"
+            "}"
         ],
     },
     {
@@ -642,8 +642,9 @@ my @cases = (
     },
 );
 
-my $is_path    = qr/ ^ Path: \s* \K (.*) $ /x;
-my $is_version = qr/ \b \d+\.\d+  $ /x;
+my $is_path       = qr/ ^ Path: \s* \K (.*) $ /x;
+my $is_version    = qr/ \b \d+\.\d+  $ /x;
+my $is_cache_path = qr/ "cache_path" \s+ => \K \s+ ".*" /x;
 
 for my $case ( @cases ) {
     my $input = join( "", $case->{input}->@* ) // "";
@@ -665,9 +666,10 @@ for my $case ( @cases ) {
 
     my @lines = split /\n/, colorstrip( $out // '' );
 
-    # Normalize Path.
+    # Normalize PATHs
     for ( @lines ) {
-        last if s/$is_path/<PATH>/;
+        s/$is_path/<PATH>/;
+        s/$is_cache_path/ "PATH"/g;
     }
 
     my $need = $case->{expected_output};

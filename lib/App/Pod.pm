@@ -38,22 +38,22 @@ has [
 
 =head1 NAME
 
- ~                      __   __              __ ~
- ~     ____  ____  ____/ /  / /_____  ____  / / ~
- ~    / __ \/ __ \/ __  /  / __/ __ \/ __ \/ /  ~
- ~   / /_/ / /_/ / /_/ /  / /_/ /_/ / /_/ / /   ~
- ~  / .___/\____/\__,_/   \__/\____/\____/_/    ~
- ~ /_/                                          ~
+ ~                      __ ~
+ ~     ____  ____  ____/ / ~
+ ~    / __ \/ __ \/ __  /  ~
+ ~   / /_/ / /_/ / /_/ /   ~
+ ~  / .___/\____/\__,_/    ~
+ ~ /_/                     ~
 
 App::Pod - Quickly show available class methods and documentation.
 
 =head1 VERSION
 
-Version 0.12
+Version 0.13
 
 =cut
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 
 =head1 SYNOPSIS
@@ -130,6 +130,8 @@ sub run {
     else {
         $self->_process_main;
     }
+
+    $self->_dump();
 }
 
 sub _new {
@@ -182,8 +184,24 @@ sub _init {
 
     # Explicitly force getting the real data.
     $self->dirty_cache( 1 ) if $o->{flush_cache};
+}
 
-    say "self=" . dumper $self if $o->{dump};
+sub _dump {
+    my ( $self ) = @_;
+    my $dump = $self->opts->{dump} or return;
+    my $data;
+
+    if ( $dump >= 2 ) {    # Dump all.
+        $data = $self;
+    }
+    elsif ( $dump >= 1 ) {    # Skip lol and tree.
+        $data = {%$self};        # Shallow copy.
+        for ( keys %$data ) {    # Keep the dump simple.
+            delete $data->{$_} if /^cache_/ and !/path/;
+        }
+    }
+
+    say "self=" . dumper $data;
 }
 
 # Spec
@@ -236,8 +254,8 @@ sub _define_spec {
             handler     => "query_class",
         },
         {
-            spec        => "dump|dd",
-            description => "Dump extra info.",
+            spec        => "dump|dd+",
+            description => "Dump extra info (adds up).",
             core        => 1,
         },
         {
@@ -372,6 +390,7 @@ sub _build_help_options {
     my @all = map {
         my $opt  = $_->{spec};
         my $desc = $_->{description};
+        $opt =~ s/\+$//;                  # Trailing plus in option.
         $opt =~ s/=\w+$//g;               # Option parameter.
         $opt =~ s/\|/, /g;
         $opt =~ s/ (?=\b\w{2}) /--/gx;    # Long opts
@@ -416,7 +435,8 @@ sub list_tool_options {
     say
       for sort
       map { length( $_ ) == 1 ? "-$_" : "--$_"; }
-      map { s/=\w+$//r }                            # Options which take values.
+      map { s/\+$//r }                             # Options which are additive.
+      map { s/=\w+$//r }                           # Options which take values.
       map { split /\|/ } _get_spec_list();
 
     # Abort if not using also --class_options.
@@ -441,7 +461,7 @@ sub _abort {
     }
 
     # No wierd class names.
-    if ( $class !~ / ^ [ \w_: ]+ $ /x ) {
+    if ( $class !~ m{ ^ [-\w_:/. ]+ $ }x ) {
         if ( not $self->opts->{no_error} ) {
             say "";
             say _red( "Invalid class name: $class" );
@@ -472,7 +492,10 @@ sub _get_path {
 
     # Use disk cache if present.
     my $disk_cache = $self->retrieve_cache;
-    return $disk_cache->{path} if $disk_cache and $disk_cache->{path};
+    if ( $disk_cache and $disk_cache->{path} ) {
+        $self->cache_path( $disk_cache->{path} );
+        return $disk_cache->{path};
+    }
 
     # Otherwise, get the class path.
     local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
@@ -624,8 +647,10 @@ sub _get_name_and_summary {
 
     # Use disk cache if present.
     my $disk_cache = $self->retrieve_cache;
-    return $disk_cache->{name_and_summary}
-      if $disk_cache and $disk_cache->{name_and_summary};
+    if ( $disk_cache and $disk_cache->{name_and_summary} ) {
+        $self->cache_name_and_summary( $disk_cache->{name_and_summary} );
+        return $disk_cache->{name_and_summary};
+    }
 
     # Otherwise, get all class events.
     local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
@@ -651,14 +676,16 @@ sub show_header {
     my ( $self )      = @_;
     my $class         = $self->class;
     my $version       = $class->VERSION;
-    my $first_release = Module::CoreList->first_release( $class );
+    my $class_is_path = $self->_get_pod->class_is_path;
+    my $first_release =
+      $class_is_path ? "" : Module::CoreList->first_release( $class );
 
     my @package_line = (
         _grey( "Package:" ),
         sprintf(
             "%s%s%s",
-            _yellow( $class ),
-            ( $version ? _green( " $version" ) : "" ),
+            _yellow( $class_is_path ? ""                    : $class ),
+            ( $version              ? _green( " $version" ) : "" ),
             (
                 $first_release
                 ? _grey( " (since perl " )
@@ -696,7 +723,10 @@ sub _get_isa {
 
     # Use disk cache if present.
     my $disk_cache = $self->retrieve_cache;
-    return $disk_cache->{isa} if $disk_cache and $disk_cache->{isa};
+    if ( $disk_cache and $disk_cache->{isa} ) {
+        $self->cache_isa( $disk_cache->{isa} );
+        return $disk_cache->{isa};
+    }
 
     # Otherwise, get all class inheritance.
     my @classes = ( $self->class );
@@ -748,7 +778,10 @@ sub _get_events {
 
     # Use disk cache if present.
     my $disk_cache = $self->retrieve_cache;
-    return $disk_cache->{events} if $disk_cache and $disk_cache->{events};
+    if ( $disk_cache and $disk_cache->{events} ) {
+        $self->cache_events( $disk_cache->{events} );
+        return $disk_cache->{events};
+    }
 
     # Otherwise, get all class events.
     local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
@@ -802,17 +835,26 @@ sub _get_methods {
 
     # Use disk cache if present.
     my $disk_cache = $self->retrieve_cache;
-    return $disk_cache->{methods} if $disk_cache and $disk_cache->{methods};
+    if ( $disk_cache and $disk_cache->{methods} ) {
+        $self->cache_methods( $disk_cache->{methods} );
+        return $disk_cache->{methods};
+    }
 
     # Otherwise, get all class methods.
     local $Pod::Query::DEBUG_FIND_DUMP = 1 if $self->opts->{dump};
-    my @methods;
     my $pod = $self->_get_pod;
-    if ( $self->_import_class ) {
-        @methods =
-          map { [ $_, scalar $pod->find_method_summary( $_ ) ] }
-          sort ( get_full_functions( $self->class ) );
+    my @method_names;
+
+    # The provided class is really the path.
+    if ( $pod->class_is_path ) {
+        @method_names = $pod->find( "head2" );
     }
+    elsif ( $self->_import_class ) {
+        @method_names = sort ( get_full_functions( $self->class ) );
+    }
+
+    my @methods =
+      map { [ $_, scalar $pod->find_method_summary( $_ ) ] } @method_names;
 
     # Cache it in-memory.
     $self->cache_methods( \@methods );
@@ -928,7 +970,6 @@ This is done for performance reasons.
 sub define_last_run_cache_file {
     my ( $self ) = @_;
     catfile( $ENV{HOME}, ".cache", "my_pod_last_run.cache" );
-
 }
 
 sub _get_class_options {
