@@ -1111,10 +1111,10 @@ sub _reset {
 }
 
 #
-# Junk
+# Legacy
 #
 
-=for REMOVE
+=for Legacy
 -
 - # pod version 0
 -
