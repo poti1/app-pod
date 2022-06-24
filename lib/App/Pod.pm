@@ -25,6 +25,7 @@ has [
       opts
       core_flags
       non_main_flags
+      cache_from_file
       cache_pod
       cache_path
       cache_name_and_summary
@@ -49,11 +50,11 @@ App::Pod - Quickly show available class methods and documentation.
 
 =head1 VERSION
 
-Version 0.13
+Version 0.14
 
 =cut
 
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 
 
 =head1 SYNOPSIS
@@ -75,7 +76,7 @@ Edit the module and jump to the specific method definition right away.
 
  % pod Mojo::UserAgent get -e
 
-Run perldoc on the module (for convience).
+Run perldoc on the module (for convenience).
 
  % pod Mojo::UserAgent -d
 
@@ -88,6 +89,10 @@ If no methods are found normally, then this will automatically be enabled.
 List all Module::Build actions.
 
  % pod Module::Build --query head1=ACTIONS/item-text
+
+Can do the same stuff with a file
+
+ % pod my.pod --query head1
 
 Show help.
 
@@ -132,6 +137,7 @@ sub run {
     }
 
     $self->_dump();
+    $self->store_cache if $self->dirty_cache;
 }
 
 sub _new {
@@ -632,7 +638,6 @@ sub _process_main {
         $self->show_inheritance;
         $self->show_events;
         $self->show_methods;
-        $self->store_cache if $self->dirty_cache;
     }
 }
 
@@ -1020,21 +1025,30 @@ sub retrieve_cache {
     my $empty = { class => "" };
     return $empty if $self->dirty_cache;
 
+    # Use in-memory cache if present.
+    my $mem_cache = $self->cache_from_file;
+    return $mem_cache if $mem_cache;
+
+    # Otherwise, go to the actual file.
     my $file = $self->define_last_run_cache_file;
     if ( not -e $file ) {
         $self->dirty_cache( 1 );
         return $empty;
     }
 
-    my $cache = j path( $file )->slurp;
+    # Extract data from file.
+    my $disk_cache = j path( $file )->slurp;
 
     # Wrong class.
-    if ( $cache->{class} ne $self->class ) {
+    if ( $disk_cache->{class} ne $self->class ) {
         $self->dirty_cache( 1 );
         return $empty;
     }
 
-    $cache;
+    # Cache it locally
+    $self->cache_from_file( $disk_cache );
+
+    $disk_cache;
 }
 
 #

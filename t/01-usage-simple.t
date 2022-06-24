@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Test::More;
 use Term::ANSIColor qw( colorstrip );
+use File::Spec::Functions qw( catfile );
 
 #TODO: Remove this debug code !!!
 use feature qw(say);
@@ -24,6 +25,8 @@ diag( "Testing App::Pod $App::Pod::VERSION, Perl $], $^X" );
 
     *Pod::Query::get_term_width = sub { 56 };    # Match android.
 }
+
+my $sample_pod = catfile( qw( t pod Mojo_UserAgent.pm ) );
 
 my @cases = (
 
@@ -475,6 +478,14 @@ my @cases = (
           ["Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent"],
     },
     {
+        name            => "query TOC",
+        input           => [qw( Mojo::UserAgent --query head1 )],
+        expected_output => [
+            "NAME",       "SYNOPSIS", "DESCRIPTION", "EVENTS",
+            "ATTRIBUTES", "METHODS",  "DEBUGGING",   "SEE ALSO"
+        ]
+    },
+    {
         name            => "query with class at end",
         input           => [qw( --query head1[0]/Para Mojo::UserAgent )],
         expected_output =>
@@ -523,6 +534,73 @@ my @cases = (
             "}"
         ],
     },
+
+    # --query good - using a file.
+    {
+        name            => "query file",
+        input           => [ $sample_pod, qw( --query head1[0]/Para ) ],
+        expected_output =>
+          ["Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent"],
+    },
+    {
+        name            => "query TOC file",
+        input           => [ $sample_pod, qw( --query head1 ) ],
+        expected_output => [
+            "NAME",       "SYNOPSIS", "DESCRIPTION", "EVENTS",
+            "ATTRIBUTES", "METHODS",  "DEBUGGING",   "SEE ALSO"
+        ]
+    },
+    {
+        name            => "query with file at end",
+        input           => [ qw( --query head1[0]/Para ), $sample_pod ],
+        expected_output =>
+          ["Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent"],
+    },
+    {
+        name  => "query with file at end and method",
+        input => [ qw( --query head1[0]/Para ), $sample_pod, qw( get ) ],
+        expected_output =>
+          ["Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent"],
+    },
+    {
+        name            => "query_dump file",
+        input           => [ $sample_pod, qw( --query head1[0]/Para --dump ) ],
+        expected_output => [
+            "_process_non_main()",
+            "Processing: query",
+            "DEBUG_FIND_DUMP: [",
+            "  {",
+            "    \"keep\" => 1,",
+            "    \"prev\" => [],",
+            "    \"tag\" => \"Para\",",
+"    \"text\" => \"Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent\"",
+            "  }",
+            "]",
+            "",
+            "Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent",
+            "self={",
+            "  \"args\" => [],",
+            "  \"cache_path\" => \"PATH\",",
+            "  \"class\" => \"$sample_pod\",",
+            "  \"core_flags\" => [],",
+            "  \"method\" => undef,",
+            "  \"non_main_flags\" => [",
+            "    {",
+            "      \"description\" => \"Run a pod query.\",",
+            "      \"handler\" => \"query_class\",",
+            "      \"name\" => \"query\",",
+            "      \"spec\" => \"query|q=s\"",
+            "    }",
+            "  ],",
+            "  \"opts\" => {",
+            "    \"dump\" => 1,",
+            "    \"query\" => \"head1[0]/Para\"",
+            "  }",
+            "}"
+        ],
+    },
+
+    # Specific modules.
     {
         name            => "Module - Mojo::File",
         input           => [qw( Mojo::File )],
@@ -684,5 +762,5 @@ for my $case ( @cases ) {
       unless is_deeply \@lines, $need, "$name";
 }
 
-done_testing( 26 );
+done_testing( 32 );
 
