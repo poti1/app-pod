@@ -3,19 +3,20 @@ package App::Pod;
 use v5.24;    # Postfix deref :)
 use strict;
 use warnings;
-use Module::Functions qw/ get_public_functions get_full_functions /;
-use Module::CoreList;
-use File::Basename        qw/ basename /;
-use File::Spec::Functions qw/ catfile  /;
-use List::Util            qw/ first max /;
 use Getopt::Long;
-use Mojo::Base      qw/ -strict base /;
-use Mojo::File      qw/ path/;
-use Mojo::JSON      qw/ j /;
-use Mojo::Util      qw/ dumper /;
-use Term::ANSIColor qw( colored colorstrip );
+use Module::CoreList;
 use Pod::Query;
-use subs qw/ _sayt /;
+use Module::Functions     qw( get_full_functions );
+use File::HomeDir         qw( home );
+use File::Basename        qw( basename );
+use File::Spec::Functions qw( catfile  );
+use List::Util            qw( first max );
+use Mojo::Base            qw( -strict base );
+use Mojo::File            qw( path );
+use Mojo::JSON            qw( j );
+use Mojo::Util            qw( dumper );
+use Term::ANSIColor       qw( colored colorstrip );
+use subs                  qw( _sayt );
 
 has [
     qw/
@@ -50,11 +51,11 @@ App::Pod - Quickly show available class methods and documentation.
 
 =head1 VERSION
 
-Version 0.15
+Version 0.16
 
 =cut
 
-our $VERSION = '0.15';
+our $VERSION = '0.16';
 
 
 =head1 SYNOPSIS
@@ -974,7 +975,7 @@ This is done for performance reasons.
 
 sub define_last_run_cache_file {
     my ( $self ) = @_;
-    catfile( $ENV{HOME}, ".cache", "my_pod_last_run.cache" );
+    catfile( home(), ".cache", "my_pod_last_run.cache", );
 }
 
 sub _get_class_options {
