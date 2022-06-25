@@ -5,14 +5,14 @@ use strict;
 use warnings;
 use Module::Functions qw/ get_public_functions get_full_functions /;
 use Module::CoreList;
-use File::Basename qw/ basename /;
+use File::Basename        qw/ basename /;
 use File::Spec::Functions qw/ catfile  /;
-use List::Util qw/ first max /;
+use List::Util            qw/ first max /;
 use Getopt::Long;
-use Mojo::Base qw/ -strict base /;
-use Mojo::File qw/ path/;
-use Mojo::JSON qw/ j /;
-use Mojo::Util qw/ dumper /;
+use Mojo::Base      qw/ -strict base /;
+use Mojo::File      qw/ path/;
+use Mojo::JSON      qw/ j /;
+use Mojo::Util      qw/ dumper /;
 use Term::ANSIColor qw( colored colorstrip );
 use Pod::Query;
 use subs qw/ _sayt /;
@@ -50,11 +50,11 @@ App::Pod - Quickly show available class methods and documentation.
 
 =head1 VERSION
 
-Version 0.14
+Version 0.15
 
 =cut
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
 
 =head1 SYNOPSIS

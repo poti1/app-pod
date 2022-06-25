@@ -66,7 +66,7 @@ my $builder = $class->new(
     },
     requires => {
         'Module::Functions' => '2.1.3',
-        'Pod::Query'        => '0.22',
+        'Pod::Query'        => '0.24',
         'Mojolicious'       => '9.19',
     },
     add_to_cleanup => [ 'App-Pod-*', "$ENV{HOME}/.cache/my_pod*.cache", ],

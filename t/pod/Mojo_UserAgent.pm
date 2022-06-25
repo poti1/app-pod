@@ -27,327 +27,344 @@ has max_connections => 5;
 has max_redirects   => sub { $ENV{MOJO_MAX_REDIRECTS} || 0 };
 has proxy           => sub { Mojo::UserAgent::Proxy->new };
 has request_timeout => sub { $ENV{MOJO_REQUEST_TIMEOUT} // 0 };
-has server          => sub { Mojo::UserAgent::Server->new(ioloop => shift->ioloop) };
-has socket_options  => sub { {} };
-has transactor      => sub { Mojo::UserAgent::Transactor->new };
+has server => sub { Mojo::UserAgent::Server->new( ioloop => shift->ioloop ) };
+has socket_options => sub { {} };
+has transactor     => sub { Mojo::UserAgent::Transactor->new };
 
 # Common HTTP methods
-for my $name (qw(DELETE GET HEAD OPTIONS PATCH POST PUT)) {
-  monkey_patch __PACKAGE__, lc $name, sub {
-    my ($self, $cb) = (shift, ref $_[-1] eq 'CODE' ? pop : undef);
-    return $self->start($self->build_tx($name, @_), $cb);
-  };
-  monkey_patch __PACKAGE__, lc($name) . '_p', sub {
-    my $self = shift;
-    return $self->start_p($self->build_tx($name, @_));
-  };
+for my $name ( qw(DELETE GET HEAD OPTIONS PATCH POST PUT) ) {
+    monkey_patch __PACKAGE__, lc $name, sub {
+        my ( $self, $cb ) = ( shift, ref $_[-1] eq 'CODE' ? pop : undef );
+        return $self->start( $self->build_tx( $name, @_ ), $cb );
+    };
+    monkey_patch __PACKAGE__, lc( $name ) . '_p', sub {
+        my $self = shift;
+        return $self->start_p( $self->build_tx( $name, @_ ) );
+    };
 }
 
 sub DESTROY { shift->_cleanup unless ${^GLOBAL_PHASE} eq 'DESTRUCT' }
 
-sub build_tx           { shift->transactor->tx(@_) }
-sub build_websocket_tx { shift->transactor->websocket(@_) }
+sub build_tx           { shift->transactor->tx( @_ ) }
+sub build_websocket_tx { shift->transactor->websocket( @_ ) }
 
 sub start {
-  my ($self, $tx, $cb) = @_;
+    my ( $self, $tx, $cb ) = @_;
 
-  # Fork-safety
-  $self->_cleanup->server->restart if $self->{pid} && $self->{pid} ne $$;
-  $self->{pid} //= $$;
+    # Fork-safety
+    $self->_cleanup->server->restart if $self->{pid} && $self->{pid} ne $$;
+    $self->{pid} //= $$;
 
-  # Non-blocking
-  if ($cb) {
-    warn "-- Non-blocking request (@{[_url($tx)]})\n" if DEBUG;
-    return $self->_start(Mojo::IOLoop->singleton, $tx, $cb);
-  }
+    # Non-blocking
+    if ( $cb ) {
+        warn "-- Non-blocking request (@{[_url($tx)]})\n" if DEBUG;
+        return $self->_start( Mojo::IOLoop->singleton, $tx, $cb );
+    }
 
-  # Blocking
-  warn "-- Blocking request (@{[_url($tx)]})\n" if DEBUG;
-  $self->_start($self->ioloop, $tx => sub { shift->ioloop->stop; $tx = shift });
-  $self->ioloop->start;
+    # Blocking
+    warn "-- Blocking request (@{[_url($tx)]})\n" if DEBUG;
+    $self->_start( $self->ioloop,
+        $tx => sub { shift->ioloop->stop; $tx = shift } );
+    $self->ioloop->start;
 
-  return $tx;
+    return $tx;
 }
 
 sub start_p {
-  my ($self, $tx) = @_;
-  my $promise = Mojo::Promise->new;
-  $self->start($tx => sub { shift->transactor->promisify($promise, shift) });
-  return $promise;
+    my ( $self, $tx ) = @_;
+    my $promise = Mojo::Promise->new;
+    $self->start( $tx => sub { shift->transactor->promisify( $promise, shift ) }
+    );
+    return $promise;
 }
 
 sub websocket {
-  my ($self, $cb) = (shift, pop);
-  $self->start($self->build_websocket_tx(@_), $cb);
+    my ( $self, $cb ) = ( shift, pop );
+    $self->start( $self->build_websocket_tx( @_ ), $cb );
 }
 
 sub websocket_p {
-  my $self = shift;
-  return $self->start_p($self->build_websocket_tx(@_));
+    my $self = shift;
+    return $self->start_p( $self->build_websocket_tx( @_ ) );
 }
 
 sub _cleanup {
-  my $self = shift;
-  delete $self->{pid};
-  $self->_finish($_, 1) for keys %{$self->{connections} // {}};
-  return $self;
+    my $self = shift;
+    delete $self->{pid};
+    $self->_finish( $_, 1 ) for keys %{ $self->{connections} // {} };
+    return $self;
 }
 
 sub _connect {
-  my ($self, $loop, $tx, $handle) = @_;
+    my ( $self, $loop, $tx, $handle ) = @_;
 
-  my $t = $self->transactor;
-  my ($proto, $host, $port) = $handle ? $t->endpoint($tx) : $t->peer($tx);
+    my $t = $self->transactor;
+    my ( $proto, $host, $port ) =
+      $handle ? $t->endpoint( $tx ) : $t->peer( $tx );
 
-  my %options = (timeout => $self->connect_timeout);
-  if   ($proto eq 'http+unix') { $options{path}             = $host }
-  else                         { @options{qw(address port)} = ($host, $port) }
-  $options{socket_options} = $self->socket_options;
-  $options{handle}         = $handle if $handle;
+    my %options = ( timeout => $self->connect_timeout );
+    if ( $proto eq 'http+unix' ) { $options{path} = $host }
+    else { @options{qw(address port)} = ( $host, $port ) }
+    $options{socket_options} = $self->socket_options;
+    $options{handle}         = $handle if $handle;
 
-  # SOCKS
-  if ($proto eq 'socks') {
-    @options{qw(socks_address socks_port)} = @options{qw(address port)};
-    ($proto, @options{qw(address port)}) = $t->endpoint($tx);
-    my $userinfo = $tx->req->via_proxy(0)->proxy->userinfo;
-    @options{qw(socks_user socks_pass)} = split /:/, $userinfo if $userinfo;
-  }
-
-  # TLS
-  if ($options{tls} = $proto eq 'https') {
-    map { $options{"tls_$_"} = $self->$_ } qw(ca cert key);
-    $options{tls_options}{SSL_verify_mode} = 0x00 if $self->insecure;
-  }
-
-  weaken $self;
-  my $id;
-  return $id = $loop->client(
-    %options => sub {
-      my ($loop, $err, $stream) = @_;
-
-      # Connection error
-      return unless $self;
-      return $self->_error($id, $err) if $err;
-
-      # Connection established
-      $stream->on(timeout => sub { $self->_error($id, 'Inactivity timeout') });
-      $stream->on(close   => sub { $self && $self->_finish($id, 1) });
-      $stream->on(error   => sub { $self && $self->_error($id, pop) });
-      $stream->on(read    => sub { $self->_read($id, pop) });
-      $self->_process($id);
+    # SOCKS
+    if ( $proto eq 'socks' ) {
+        @options{qw(socks_address socks_port)} = @options{qw(address port)};
+        ( $proto, @options{qw(address port)} ) = $t->endpoint( $tx );
+        my $userinfo = $tx->req->via_proxy( 0 )->proxy->userinfo;
+        @options{qw(socks_user socks_pass)} = split /:/, $userinfo if $userinfo;
     }
-  );
+
+    # TLS
+    if ( $options{tls} = $proto eq 'https' ) {
+        map { $options{"tls_$_"} = $self->$_ } qw(ca cert key);
+        $options{tls_options}{SSL_verify_mode} = 0x00 if $self->insecure;
+    }
+
+    weaken $self;
+    my $id;
+    return $id = $loop->client(
+        %options => sub {
+            my ( $loop, $err, $stream ) = @_;
+
+            # Connection error
+            return unless $self;
+            return $self->_error( $id, $err ) if $err;
+
+            # Connection established
+            $stream->on(
+                timeout => sub { $self->_error( $id, 'Inactivity timeout' ) } );
+            $stream->on( close => sub { $self && $self->_finish( $id, 1 ) } );
+            $stream->on( error => sub { $self && $self->_error( $id, pop ) } );
+            $stream->on( read  => sub { $self->_read( $id, pop ) } );
+            $self->_process( $id );
+        }
+    );
 }
 
 sub _connect_proxy {
-  my ($self, $loop, $old, $cb) = @_;
+    my ( $self, $loop, $old, $cb ) = @_;
 
-  # Start CONNECT request
-  return undef unless my $new = $self->transactor->proxy_connect($old);
-  my $id;
-  return $id = $self->_start(
-    ($loop, $new) => sub {
-      my ($self, $tx) = @_;
+    # Start CONNECT request
+    return undef unless my $new = $self->transactor->proxy_connect( $old );
+    my $id;
+    return $id = $self->_start(
+        ( $loop, $new ) => sub {
+            my ( $self, $tx ) = @_;
 
-      # Real transaction
-      $old->previous($tx)->req->via_proxy(0);
-      my $c = $self->{connections}{$id} = {cb => $cb, ioloop => $loop, tx => $old};
+            # Real transaction
+            $old->previous( $tx )->req->via_proxy( 0 );
+            my $c = $self->{connections}{$id} =
+              { cb => $cb, ioloop => $loop, tx => $old };
 
-      # CONNECT failed
-      return $self->_error($id, 'Proxy connection failed') if $tx->error || !$tx->res->is_success || !$tx->keep_alive;
+            # CONNECT failed
+            return $self->_error( $id, 'Proxy connection failed' )
+              if $tx->error || !$tx->res->is_success || !$tx->keep_alive;
 
-      # Start real transaction without TLS upgrade
-      return $self->_process($id) unless $tx->req->url->protocol eq 'https';
+            # Start real transaction without TLS upgrade
+            return $self->_process( $id )
+              unless $tx->req->url->protocol eq 'https';
 
-      # TLS upgrade before starting the real transaction
-      my $handle = $loop->stream($id)->steal_handle;
-      $self->_remove($id);
-      $id = $self->_connect($loop, $old, $handle);
-      $self->{connections}{$id} = $c;
-    }
-  );
+            # TLS upgrade before starting the real transaction
+            my $handle = $loop->stream( $id )->steal_handle;
+            $self->_remove( $id );
+            $id = $self->_connect( $loop, $old, $handle );
+            $self->{connections}{$id} = $c;
+        }
+    );
 }
 
 sub _connection {
-  my ($self, $loop, $tx, $cb) = @_;
+    my ( $self, $loop, $tx, $cb ) = @_;
 
-  # Reuse connection
-  my ($proto, $host, $port) = $self->transactor->endpoint($tx);
-  my $id;
-  if ($id = $self->_dequeue($loop, "$proto:$host:$port", 1)) {
-    warn "-- Reusing connection $id ($proto://$host:$port)\n" if DEBUG;
-    @{$self->{connections}{$id}}{qw(cb tx)} = ($cb, $tx);
-    $tx->kept_alive(1) unless $tx->connection;
-    $self->_process($id);
+    # Reuse connection
+    my ( $proto, $host, $port ) = $self->transactor->endpoint( $tx );
+    my $id;
+    if ( $id = $self->_dequeue( $loop, "$proto:$host:$port", 1 ) ) {
+        warn "-- Reusing connection $id ($proto://$host:$port)\n" if DEBUG;
+        @{ $self->{connections}{$id} }{qw(cb tx)} = ( $cb, $tx );
+        $tx->kept_alive( 1 ) unless $tx->connection;
+        $self->_process( $id );
+        return $id;
+    }
+
+    # CONNECT request to proxy required
+    if ( my $id = $self->_connect_proxy( $loop, $tx, $cb ) ) { return $id }
+
+    # New connection
+    $tx->res->error( { message => "Unsupported protocol: $proto" } )
+      and return $loop->next_tick( sub { $self->$cb( $tx ) } )
+      unless $proto eq 'http' || $proto eq 'https' || $proto eq 'http+unix';
+    $id = $self->_connect( $loop, $tx );
+    warn "-- Connect $id ($proto://$host:$port)\n" if DEBUG;
+    $self->{connections}{$id} = { cb => $cb, ioloop => $loop, tx => $tx };
+
     return $id;
-  }
-
-  # CONNECT request to proxy required
-  if (my $id = $self->_connect_proxy($loop, $tx, $cb)) { return $id }
-
-  # New connection
-  $tx->res->error({message => "Unsupported protocol: $proto"}) and return $loop->next_tick(sub { $self->$cb($tx) })
-    unless $proto eq 'http' || $proto eq 'https' || $proto eq 'http+unix';
-  $id = $self->_connect($loop, $tx);
-  warn "-- Connect $id ($proto://$host:$port)\n" if DEBUG;
-  $self->{connections}{$id} = {cb => $cb, ioloop => $loop, tx => $tx};
-
-  return $id;
 }
 
 sub _dequeue {
-  my ($self, $loop, $name, $test) = @_;
+    my ( $self, $loop, $name, $test ) = @_;
 
-  my $old = $self->{queue}{$loop} //= [];
-  my ($found, @new);
-  for my $queued (@$old) {
-    push @new, $queued and next if $found || !grep { $_ eq $name } @$queued;
+    my $old = $self->{queue}{$loop} //= [];
+    my ( $found, @new );
+    for my $queued ( @$old ) {
+        push @new, $queued and next if $found || !grep { $_ eq $name } @$queued;
 
-    # Search for id/name and sort out corrupted connections if necessary
-    next unless my $stream = $loop->stream($queued->[1]);
-    $test && $stream->is_readable ? $stream->close : ($found = $queued->[1]);
-  }
-  @$old = @new;
+        # Search for id/name and sort out corrupted connections if necessary
+        next unless my $stream = $loop->stream( $queued->[1] );
+        $test
+          && $stream->is_readable ? $stream->close : ( $found = $queued->[1] );
+    }
+    @$old = @new;
 
-  return $found;
+    return $found;
 }
 
 sub _error {
-  my ($self, $id, $err) = @_;
-  my $tx = $self->{connections}{$id}{tx};
-  $tx->res->error({message => $err}) if $tx;
-  $self->_finish($id, 1);
+    my ( $self, $id, $err ) = @_;
+    my $tx = $self->{connections}{$id}{tx};
+    $tx->res->error( { message => $err } ) if $tx;
+    $self->_finish( $id, 1 );
 }
 
 sub _finish {
-  my ($self, $id, $close) = @_;
+    my ( $self, $id, $close ) = @_;
 
-  # Remove request timeout and finish transaction
-  return undef unless my $c = $self->{connections}{$id};
-  $c->{ioloop}->remove(delete $c->{timeout}) if $c->{timeout};
-  return $self->_reuse($id, $close) unless my $old = $c->{tx};
+    # Remove request timeout and finish transaction
+    return undef unless my $c = $self->{connections}{$id};
+    $c->{ioloop}->remove( delete $c->{timeout} ) if $c->{timeout};
+    return $self->_reuse( $id, $close ) unless my $old = $c->{tx};
 
-  # Premature connection close
-  my $res = $old->closed->res->finish;
-  $res->error({message => 'Premature connection close'}) if $close && !$res->code && !$res->error;
+    # Premature connection close
+    my $res = $old->closed->res->finish;
+    $res->error( { message => 'Premature connection close' } )
+      if $close && !$res->code && !$res->error;
 
-  # Always remove connection for WebSockets
-  return $self->_remove($id) if $old->is_websocket;
-  $self->cookie_jar->collect($old);
+    # Always remove connection for WebSockets
+    return $self->_remove( $id ) if $old->is_websocket;
+    $self->cookie_jar->collect( $old );
 
-  # Upgrade connection to WebSocket
-  if (my $new = $self->transactor->upgrade($old)) {
-    weaken $self;
-    $new->on(resume => sub { $self->_write($id) });
-    $c->{cb}($self, $c->{tx} = $new);
-    return $new->client_read($old->res->content->leftovers);
-  }
+    # Upgrade connection to WebSocket
+    if ( my $new = $self->transactor->upgrade( $old ) ) {
+        weaken $self;
+        $new->on( resume => sub { $self->_write( $id ) } );
+        $c->{cb}( $self, $c->{tx} = $new );
+        return $new->client_read( $old->res->content->leftovers );
+    }
 
-  # CONNECT requests always have a follow-up request
-  $self->_reuse($id, $close) unless uc $old->req->method eq 'CONNECT';
-  $res->error({message => $res->message, code => $res->code}) if $res->is_error;
-  $c->{cb}($self, $old) unless $self->_redirect($c, $old);
+    # CONNECT requests always have a follow-up request
+    $self->_reuse( $id, $close ) unless uc $old->req->method eq 'CONNECT';
+    $res->error( { message => $res->message, code => $res->code } )
+      if $res->is_error;
+    $c->{cb}( $self, $old ) unless $self->_redirect( $c, $old );
 }
 
 sub _process {
-  my ($self, $id) = @_;
+    my ( $self, $id ) = @_;
 
-  my $c      = $self->{connections}{$id};
-  my $stream = $c->{ioloop}->stream($id)->timeout($self->inactivity_timeout);
-  my $tx     = $c->{tx}->connection($id);
-  my $handle = $stream->handle;
-  unless ($handle->isa('IO::Socket::UNIX')) {
-    $tx->local_address($handle->sockhost)->local_port($handle->sockport);
-    $tx->remote_address($handle->peerhost)->remote_port($handle->peerport);
-  }
+    my $c = $self->{connections}{$id};
+    my $stream =
+      $c->{ioloop}->stream( $id )->timeout( $self->inactivity_timeout );
+    my $tx     = $c->{tx}->connection( $id );
+    my $handle = $stream->handle;
+    unless ( $handle->isa( 'IO::Socket::UNIX' ) ) {
+        $tx->local_address( $handle->sockhost )
+          ->local_port( $handle->sockport );
+        $tx->remote_address( $handle->peerhost )
+          ->remote_port( $handle->peerport );
+    }
 
-  weaken $self;
-  $tx->on(resume => sub { $self->_write($id) });
-  $self->_write($id);
+    weaken $self;
+    $tx->on( resume => sub { $self->_write( $id ) } );
+    $self->_write( $id );
 }
 
 sub _read {
-  my ($self, $id, $chunk) = @_;
+    my ( $self, $id, $chunk ) = @_;
 
-  # Corrupted connection
-  return $self->_remove($id) unless my $tx = $self->{connections}{$id}{tx};
-  warn term_escape "-- Client <<< Server (@{[_url($tx)]})\n$chunk\n" if DEBUG;
-  $tx->client_read($chunk);
-  $self->_finish($id) if $tx->is_finished;
+    # Corrupted connection
+    return $self->_remove( $id ) unless my $tx = $self->{connections}{$id}{tx};
+    warn term_escape "-- Client <<< Server (@{[_url($tx)]})\n$chunk\n" if DEBUG;
+    $tx->client_read( $chunk );
+    $self->_finish( $id ) if $tx->is_finished;
 }
 
 sub _redirect {
-  my ($self, $c, $old) = @_;
-  return undef unless my $new = $self->transactor->redirect($old);
-  return undef unless @{$old->redirects} < $self->max_redirects;
-  return $self->_start($c->{ioloop}, $new, delete $c->{cb});
+    my ( $self, $c, $old ) = @_;
+    return undef unless my $new = $self->transactor->redirect( $old );
+    return undef unless @{ $old->redirects } < $self->max_redirects;
+    return $self->_start( $c->{ioloop}, $new, delete $c->{cb} );
 }
 
 sub _remove {
-  my ($self, $id) = @_;
-  my $c = delete $self->{connections}{$id};
-  $self->_dequeue($c->{ioloop}, $id);
-  $c->{ioloop}->remove($id);
+    my ( $self, $id ) = @_;
+    my $c = delete $self->{connections}{$id};
+    $self->_dequeue( $c->{ioloop}, $id );
+    $c->{ioloop}->remove( $id );
 }
 
 sub _reuse {
-  my ($self, $id, $close) = @_;
+    my ( $self, $id, $close ) = @_;
 
-  # Connection close
-  my $c   = $self->{connections}{$id};
-  my $tx  = delete $c->{tx};
-  my $max = $self->max_connections;
-  return $self->_remove($id) if $close || !$tx || !$max || !$tx->keep_alive || $tx->error;
+    # Connection close
+    my $c   = $self->{connections}{$id};
+    my $tx  = delete $c->{tx};
+    my $max = $self->max_connections;
+    return $self->_remove( $id )
+      if $close || !$tx || !$max || !$tx->keep_alive || $tx->error;
 
-  # Keep connection alive
-  my $queue = $self->{queue}{$c->{ioloop}} //= [];
-  $self->_remove(shift(@$queue)->[1]) while @$queue && @$queue >= $max;
-  push @$queue, [join(':', $self->transactor->endpoint($tx)), $id];
+    # Keep connection alive
+    my $queue = $self->{queue}{ $c->{ioloop} } //= [];
+    $self->_remove( shift( @$queue )->[1] ) while @$queue && @$queue >= $max;
+    push @$queue, [ join( ':', $self->transactor->endpoint( $tx ) ), $id ];
 }
 
 sub _start {
-  my ($self, $loop, $tx, $cb) = @_;
+    my ( $self, $loop, $tx, $cb ) = @_;
 
-  # Application server
-  $self->emit(prepare => $tx);
-  my $url = $tx->req->url;
-  if (!$url->is_abs && (my $server = $self->server)) {
-    my $base = $loop == $self->ioloop ? $server->url : $server->nb_url;
-    $url->scheme($base->scheme)->host($base->host)->port($base->port);
-  }
+    # Application server
+    $self->emit( prepare => $tx );
+    my $url = $tx->req->url;
+    if ( !$url->is_abs && ( my $server = $self->server ) ) {
+        my $base = $loop == $self->ioloop ? $server->url : $server->nb_url;
+        $url->scheme( $base->scheme )->host( $base->host )->port( $base->port );
+    }
 
-  $_->prepare($tx) for $self->proxy, $self->cookie_jar;
-  my $max = $self->max_response_size;
-  $tx->res->max_message_size($max) if defined $max;
-  $self->emit(start => $tx);
+    $_->prepare( $tx ) for $self->proxy, $self->cookie_jar;
+    my $max = $self->max_response_size;
+    $tx->res->max_message_size( $max ) if defined $max;
+    $self->emit( start => $tx );
 
-  # Allow test servers sharing the same event loop to clean up connections
-  !$loop->next_tick(sub { }) and $loop->one_tick unless $loop->is_running;
-  return undef                                   unless my $id = $self->_connection($loop, $tx, $cb);
+    # Allow test servers sharing the same event loop to clean up connections
+    !$loop->next_tick( sub { } ) and $loop->one_tick unless $loop->is_running;
+    return undef unless my $id = $self->_connection( $loop, $tx, $cb );
 
-  if (my $t = $self->request_timeout) {
-    weaken $self;
-    $self->{connections}{$id}{timeout} ||= $loop->timer($t => sub { $self->_error($id, 'Request timeout') });
-  }
+    if ( my $t = $self->request_timeout ) {
+        weaken $self;
+        $self->{connections}{$id}{timeout} ||=
+          $loop->timer( $t => sub { $self->_error( $id, 'Request timeout' ) } );
+    }
 
-  return $id;
+    return $id;
 }
 
 sub _url { shift->req->url->to_abs }
 
 sub _write {
-  my ($self, $id) = @_;
+    my ( $self, $id ) = @_;
 
-  # Protect from resume event recursion
-  my $c = $self->{connections}{$id};
-  return if !(my $tx = $c->{tx}) || $c->{writing};
-  local $c->{writing} = 1;
-  my $chunk = $tx->client_write;
-  warn term_escape "-- Client >>> Server (@{[_url($tx)]})\n$chunk\n" if DEBUG;
-  return unless length $chunk;
+    # Protect from resume event recursion
+    my $c = $self->{connections}{$id};
+    return if !( my $tx = $c->{tx} ) || $c->{writing};
+    local $c->{writing} = 1;
+    my $chunk = $tx->client_write;
+    warn term_escape "-- Client >>> Server (@{[_url($tx)]})\n$chunk\n" if DEBUG;
+    return unless length $chunk;
 
-  weaken $self;
-  $c->{ioloop}->stream($id)->write($chunk => sub { $self && $self->_write($id) });
+    weaken $self;
+    $c->{ioloop}->stream( $id )
+      ->write( $chunk => sub { $self && $self->_write( $id ) } );
 }
 
 1;

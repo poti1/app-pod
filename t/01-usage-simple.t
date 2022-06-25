@@ -3,11 +3,11 @@ use v5.24;    # Postfix defef.
 use strict;
 use warnings;
 use Test::More;
-use Term::ANSIColor qw( colorstrip );
+use Term::ANSIColor       qw( colorstrip );
 use File::Spec::Functions qw( catfile );
 
 #TODO: Remove this debug code !!!
-use feature qw(say);
+use feature    qw(say);
 use Mojo::Util qw(dumper);
 
 BEGIN {
