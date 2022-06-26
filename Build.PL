@@ -9,7 +9,7 @@ Module::Build->VERSION( '0.4004' );
 my $class = Module::Build->subclass(
     code => q{
         use Perl::OSType    qw(os_type);
-        +use File::HomeDir  qw( home );
+        use File::HomeDir   qw( home );
         sub _clear_cache {
             my $home = home();
             for ( glob qq("$home/.cache/my_pod*.cache") ) {
