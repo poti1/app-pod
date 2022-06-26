@@ -8,9 +8,11 @@ Module::Build->VERSION( '0.4004' );
 
 my $class = Module::Build->subclass(
     code => q{
-        use Perl::OSType qw(os_type);
+        use Perl::OSType    qw(os_type);
+        +use File::HomeDir  qw( home );
         sub _clear_cache {
-            for ( glob qq("$ENV{HOME}/.cache/my_pod*.cache") ) {
+            my $home = home();
+            for ( glob qq("$home/.cache/my_pod*.cache") ) {
                 print "Removing: $_\n";
                 unlink or warn $!;
             }
