@@ -26,7 +26,7 @@ diag( "Testing App::Pod $App::Pod::VERSION, Perl $], $^X" );
     *Pod::Query::get_term_width = sub { 56 };    # Match android.
 }
 
-my $sample_pod = catfile( qw( t pod Mojo_UserAgent.pm ) );
+my $sample_pod = catfile( qw( t ex_Mojo_UserAgent.pm ) );
 
 my @cases = (
 
