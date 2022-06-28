@@ -5,6 +5,7 @@ use warnings;
 use Test::More;
 use Term::ANSIColor       qw( colorstrip );
 use File::Spec::Functions qw( catfile );
+use FindBin               qw( $RealDir );
 
 #TODO: Remove this debug code !!!
 use feature    qw(say);
@@ -26,7 +27,11 @@ diag( "Testing App::Pod $App::Pod::VERSION, Perl $], $^X" );
     *Pod::Query::get_term_width = sub { 56 };    # Match android.
 }
 
-my $sample_pod = catfile( qw( t ex_Mojo_UserAgent.pm ) );
+
+my $sample_pod = catfile( $RealDir, qw( pod Mojo_UserAgent.pm ) );
+
+# Make sure sample pod file is present.
+ok( -f $sample_pod, "pod file exists" );
 
 my @cases = (
 
@@ -762,5 +767,5 @@ for my $case ( @cases ) {
       unless is_deeply \@lines, $need, "$name";
 }
 
-done_testing( 32 );
+done_testing( 33 );
 

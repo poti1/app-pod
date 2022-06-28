@@ -51,11 +51,11 @@ App::Pod - Quickly show available class methods and documentation.
 
 =head1 VERSION
 
-Version 0.18
+Version 0.19
 
 =cut
 
-our $VERSION = '0.18';
+our $VERSION = '0.19';
 
 
 =head1 SYNOPSIS
@@ -738,7 +738,7 @@ sub _get_isa {
     my @classes = ( $self->class );
     my @isa;
     my %seen;
-    {
+    if ( not $self->_get_pod->class_is_path ) {
         no strict 'refs';
         while ( my $class = shift @classes ) {
             next if $seen{$class}++;    # Already saw it
