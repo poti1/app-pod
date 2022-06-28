@@ -7,7 +7,6 @@ use Term::ANSIColor       qw( colorstrip );
 use File::Spec::Functions qw( catfile );
 use FindBin               qw( $RealDir );
 
-#TODO: Remove this debug code !!!
 use feature    qw(say);
 use Mojo::Util qw(dumper);
 
@@ -30,7 +29,6 @@ diag( "Testing App::Pod $App::Pod::VERSION, Perl $], $^X" );
 
 my $sample_pod = catfile( $RealDir, qw( pod Mojo_UserAgent.pm ) );
 
-# Make sure sample pod file is present.
 ok( -f $sample_pod, "pod file exists" );
 
 my @cases = (
