@@ -14,7 +14,7 @@ use List::Util            qw( first max );
 use Mojo::File            qw( path );
 use Mojo::JSON            qw( j );
 use Perl::OSType          qw( os_type );
-use Term::ANSIColor       qw( colored colorstrip );
+use Term::ANSIColor       qw( colored );
 use subs                  qw( _sayt );
 
 =head1 NAME
@@ -105,7 +105,8 @@ sub _has {
             return $_[0]{$attr} if @_ == 1;    # Get: return $self-<{$attr}
             $_[0]{$attr} = $_[1];              # Set: $self->{$attr} = $val
             $_[0];                             # return $self
-        } if not defined &$attr;
+          }
+          if not defined &$attr;
     }
 }
 
@@ -1120,43 +1121,74 @@ sub retrieve_cache {
 # Output
 #
 
-sub _trim {
-    my ( $line )    = @_;
-    my $term_width  = Pod::Query::get_term_width();
-    my $replacement = " ...";
-    my $width = $term_width - length( $replacement ) - 1;    # "-1" for newline
-        # say "term_width=$term_width";
-        # say "replacement=$replacement";
-        # say "width=$width";
+=head2 trim
 
-    # Trim to terminal width
-    my $colored_length   = length( $line );
-    my $uncolored_length = length( colorstrip( $line ) );
-    my $diff_length      = $colored_length - $uncolored_length;
+Trim a line to fit the terminal width.
+Handles also escape codes within the line.
 
-    # say "colored_length=$colored_length";
-    # say "uncolored_length=$uncolored_length";
-    # say "diff_length=$diff_length";
+=cut
 
-    # Subtract the color escape code.
-    $diff_length = $diff_length - 3 if $diff_length;
+sub trim {
+    my ( $line ) = @_;
+    state $esc            = qr{ \033\[ [\d;]+ m    }x;
+    state $data           = qr{ (?: (?!$esc) . )++ }x;
+    state $data_or_escape = qr{ (?<data>$data) | (?<esc>$esc) }x;
+    state $term_width     = Pod::Query::get_term_width();
+    state $replacement    = " ...";
+    state $newline_len    = 1;
+    state $width_raw      = $term_width - $newline_len - length( $replacement );
+    state $base_width = $width_raw >= 0 ? $width_raw : 0;  # To avoid negatives.
 
-    # say "diff_length=$diff_length";
-
-    # Trim the line.
-    if ( $uncolored_length >= $term_width ) {    # "=" also for newline
-                                                 #     say "line1=[$line]";
-        $line = substr( $line, 0, $width + $diff_length ) . $replacement;
-
-        #     say "line2=[$line]";
+    # Figure out the total len of the line (uncolored).
+    my $total_chars = 0;
+    my @detailed_line_parts;
+    while ( $line =~ /$data_or_escape/g ) {
+        my $part = {%+};
+        $total_chars += $part->{len} = length( $part->{data} // "" );
+        push @detailed_line_parts, $part;
     }
 
-    $line;
+    # No need to trim.
+    return $line if $total_chars < $term_width;
+
+    # Need to trim.
+    my @parts;
+    my $size_exceeded;
+    my $so_far_len = 0;
+    for my $part ( @detailed_line_parts ) {
+
+        # Handle escape codes.
+        if ( not $part->{len} ) {
+            push @parts, $part->{esc};    # Add escapes back.
+            last if $size_exceeded;       # Done.
+            next;
+        }
+
+        # Handle trailing escapes.
+        last if $size_exceeded;
+
+        # Trim line if it would be too long.
+        if ( $so_far_len + $part->{len} > $base_width ) {
+            $size_exceeded = 1;  # Still need to possibly add a trailing escape.
+
+            # Limit line to allowed width.
+            $part->{data} = substr(
+                $part->{data},
+                0,
+                $base_width - $so_far_len,    # How much space is left.
+            ) . $replacement;
+        }
+
+        $so_far_len += $part->{len};
+        push @parts, $part->{data};
+    }
+
+    join "", @parts, "+";
 }
 
 sub _sayt {
 
-    say _trim( @_ );
+    say trim( @_ );
 }
 
 sub _red {

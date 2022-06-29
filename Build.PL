@@ -72,7 +72,7 @@ my $builder = $class->new(
         'File::HomeDir'     => '1.006',
         'Mojo::File'        => '0',
         'Mojo::JSON'        => '0',
-        'Pod::Query'        => '0.25',
+        'Pod::Query'        => '0.29',
     },
     add_to_cleanup => [
         'App-Pod-*',
