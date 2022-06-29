@@ -6,6 +6,7 @@ use Test::More;
 use Term::ANSIColor       qw( colorstrip );
 use File::Spec::Functions qw( catfile );
 use FindBin               qw( $RealDir );
+use lib "$RealDir/cpan";
 
 sub _dumper {
     require Data::Dumper;
@@ -37,7 +38,7 @@ diag( "Testing App::Pod $App::Pod::VERSION, Perl $], $^X" );
 }
 
 
-my $sample_pod = catfile( $RealDir, qw( pod Mojo_UserAgent.pm ) );
+my $sample_pod = catfile( $RealDir, qw( cpan Mojo UserAgent.pm ) );
 
 ok( -f $sample_pod, "pod file exists: $sample_pod" );
 
