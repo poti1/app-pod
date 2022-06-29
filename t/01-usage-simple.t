@@ -7,8 +7,18 @@ use Term::ANSIColor       qw( colorstrip );
 use File::Spec::Functions qw( catfile );
 use FindBin               qw( $RealDir );
 
-use feature    qw(say);
-use Mojo::Util qw(dumper);
+sub _dumper {
+    require Data::Dumper;
+    my $data = Data::Dumper
+      ->new( [@_] )
+      ->Indent( 1 )
+      ->Sortkeys( 1 )
+      ->Terse( 1 )
+      ->Useqq( 1 )
+      ->Dump;
+    return $data if defined wantarray;
+    say $data;
+}
 
 BEGIN {
     use_ok( 'App::Pod' ) || print "Bail out!\n";
@@ -517,12 +527,12 @@ my @cases = (
             "",
             "Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent",
             "self={",
-            "  \"args\" => [],",
-            "  \"cache_path\" => \"PATH\",",
-            "  \"class\" => \"Mojo::UserAgent\",",
-            "  \"core_flags\" => [],",
-            "  \"method\" => undef,",
-            "  \"non_main_flags\" => [",
+            "  \"_args\" => [],",
+            "  \"_cache_path\" => \"PATH\",",
+            "  \"_class\" => \"Mojo::UserAgent\",",
+            "  \"_core_flags\" => [],",
+            "  \"_method\" => undef,",
+            "  \"_non_main_flags\" => [",
             "    {",
             "      \"description\" => \"Run a pod query.\",",
             "      \"handler\" => \"query_class\",",
@@ -530,7 +540,7 @@ my @cases = (
             "      \"spec\" => \"query|q=s\"",
             "    }",
             "  ],",
-            "  \"opts\" => {",
+            "  \"_opts\" => {",
             "    \"dump\" => 1,",
             "    \"query\" => \"head1[0]/Para\"",
             "  }",
@@ -582,12 +592,12 @@ my @cases = (
             "",
             "Mojo::UserAgent - Non-blocking I/O HTTP and WebSocket user agent",
             "self={",
-            "  \"args\" => [],",
-            "  \"cache_path\" => \"PATH\",",
-            "  \"class\" => \"$sample_pod\",",
-            "  \"core_flags\" => [],",
-            "  \"method\" => undef,",
-            "  \"non_main_flags\" => [",
+            "  \"_args\" => [],",
+            "  \"_cache_path\" => \"PATH\",",
+            "  \"_class\" => \"$sample_pod\",",
+            "  \"_core_flags\" => [],",
+            "  \"_method\" => undef,",
+            "  \"_non_main_flags\" => [",
             "    {",
             "      \"description\" => \"Run a pod query.\",",
             "      \"handler\" => \"query_class\",",
@@ -595,7 +605,7 @@ my @cases = (
             "      \"spec\" => \"query|q=s\"",
             "    }",
             "  ],",
-            "  \"opts\" => {",
+            "  \"_opts\" => {",
             "    \"dump\" => 1,",
             "    \"query\" => \"head1[0]/Para\"",
             "  }",
@@ -725,7 +735,7 @@ my @cases = (
 
 my $is_path       = qr/ ^ Path: \s* \K (.*) $ /x;
 my $is_version    = qr/ \b \d+\.\d+  $ /x;
-my $is_cache_path = qr/ "cache_path" \s+ => \K \s+ ".*" /x;
+my $is_cache_path = qr/ "_cache_path" \s+ => \K \s+ ".*" /x;
 
 for my $case ( @cases ) {
     local @ARGV = ( $case->{input}->@* );
@@ -758,7 +768,7 @@ for my $case ( @cases ) {
         $lines[0] =~ s/$is_version/<VERSION>/;
     }
 
-    say STDERR dumper \@lines
+    say STDERR _dumper \@lines
       unless is_deeply( \@lines, $case->{expected_output}, $case->{name} );
 }
 
