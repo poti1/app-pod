@@ -2,7 +2,7 @@
 use v5.24;    # Postfix defef.
 use strict;
 use warnings;
-use Test::More;
+use Test::More tests => 34;
 use Term::ANSIColor       qw( colorstrip );
 use File::Spec::Functions qw( catfile );
 use FindBin               qw( $RealDir );
@@ -797,6 +797,4 @@ for my $case ( @cases ) {
     say STDERR _dumper \@lines
       unless is_deeply( \@lines, $case->{expected_output}, $case->{name} );
 }
-
-done_testing( 34 );
 

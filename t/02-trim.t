@@ -2,7 +2,7 @@
 use v5.24;    # Postfix defef.
 use strict;
 use warnings;
-use Test::More;
+use Test::More tests => 10;
 
 BEGIN {
     use_ok( 'App::Pod' ) || print "Bail out!\n";
@@ -83,6 +83,4 @@ for my $case ( @cases ) {
         $case->{name},
     );
 }
-
-done_testing( 10 );
 
