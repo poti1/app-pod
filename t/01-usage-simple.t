@@ -6,7 +6,7 @@ use Test::More;
 use Term::ANSIColor       qw( colorstrip );
 use File::Spec::Functions qw( catfile );
 use FindBin               qw( $RealDir );
-use lib "$RealDir/cpan";
+use lib catfile( $RealDir, "cpan" );
 
 sub _dumper {
     require Data::Dumper;
