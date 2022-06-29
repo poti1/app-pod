@@ -39,6 +39,7 @@ diag( "Testing App::Pod $App::Pod::VERSION, Perl $], $^X" );
 
 
 my $sample_pod = catfile( $RealDir, qw( cpan Mojo UserAgent.pm ) );
+my $windows_safe_path = $sample_pod =~ s&\\&\\&gr;
 
 ok( -f $sample_pod, "pod file exists: $sample_pod" );
 
