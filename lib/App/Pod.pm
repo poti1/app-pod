@@ -3,7 +3,7 @@ package App::Pod;
 use v5.24;    # Postfix deref :)
 use strict;
 use warnings;
-use Pod::Query();
+use Pod::Query;
 use Module::CoreList();
 use Getopt::Long          qw( GetOptions );
 use Module::Functions     qw( get_full_functions );
@@ -13,6 +13,7 @@ use File::Spec::Functions qw( catfile  );
 use List::Util            qw( first max );
 use Mojo::File            qw( path );
 use Mojo::JSON            qw( j );
+use Perl::OSType          qw( os_type );
 use Term::ANSIColor       qw( colored colorstrip );
 use subs                  qw( _sayt );
 
@@ -229,6 +230,28 @@ sub _init {
 
     # Explicitly force getting the real data.
     $self->_dirty_cache( 1 ) if $o->{flush_cache};
+
+    # Not sure how to handle colors in windows.
+    $self->_no_colors() if os_type eq "Windows";
+}
+
+sub _no_colors {
+    my @colors = qw(
+      _red
+      _yellow
+      _green
+      _grey
+      _neon
+      _reset
+    );
+
+    no strict 'refs';
+    no warnings 'redefine';
+
+    # Pass through the args.
+    for my $color ( @colors ) {
+        *$color = sub { "@_" };
+    }
 }
 
 sub _dump {
