@@ -1,7 +1,7 @@
 package ojo;
 use Mojo::Base -strict;
 
-use Benchmark qw(timeit timestr :hireswallclock);
+use Benchmark        qw(timeit timestr :hireswallclock);
 use Mojo::ByteStream qw(b);
 use Mojo::Collection qw(c);
 use Mojo::DOM;
@@ -15,34 +15,35 @@ $ENV{MOJO_LOG_LEVEL} ||= 'fatal';
 
 sub import {
 
-  # Mojolicious::Lite
-  my $caller = caller;
-  eval "package $caller; use Mojolicious::Lite; 1" or die $@;
-  Mojo::Base->import(-strict, $] < 5.020 ? () : (-signatures));
-  my $ua = $caller->app->ua;
-  $ua->server->app->hook(around_action => sub { local $_ = $_[1]; $_[0]() });
+    # Mojolicious::Lite
+    my $caller = caller;
+    eval "package $caller; use Mojolicious::Lite; 1" or die $@;
+    Mojo::Base->import( -strict, $] < 5.020 ? () : ( -signatures ) );
+    my $ua = $caller->app->ua;
+    $ua->server->app->hook( around_action => sub { local $_ = $_[1]; $_[0]() }
+    );
 
-  $ua->max_redirects(10) unless defined $ENV{MOJO_MAX_REDIRECTS};
-  $ua->proxy->detect     unless defined $ENV{MOJO_PROXY};
+    $ua->max_redirects( 10 ) unless defined $ENV{MOJO_MAX_REDIRECTS};
+    $ua->proxy->detect       unless defined $ENV{MOJO_PROXY};
 
-  # The ojo DSL
-  monkey_patch $caller,
-    a => sub { $caller->can('any')->(@_) and return $ua->server->app },
-    b => \&b,
-    c => \&c,
-    d => sub { $ua->delete(@_)->result },
-    f => \&path,
-    g => sub { $ua->get(@_)->result },
-    h => sub { $ua->head(@_)->result },
-    j => \&j,
-    l => sub { Mojo::URL->new(@_) },
-    n => sub (&@) { say STDERR timestr timeit($_[1] // 1, $_[0]) },
-    o => sub { $ua->options(@_)->result },
-    p => sub { $ua->post(@_)->result },
-    r => \&dumper,
-    t => sub { $ua->patch(@_)->result },
-    u => sub { $ua->put(@_)->result },
-    x => sub { Mojo::DOM->new(@_) };
+    # The ojo DSL
+    monkey_patch $caller,
+      a => sub { $caller->can( 'any' )->( @_ ) and return $ua->server->app },
+      b => \&b,
+      c => \&c,
+      d => sub { $ua->delete( @_ )->result },
+      f => \&path,
+      g => sub { $ua->get( @_ )->result },
+      h => sub { $ua->head( @_ )->result },
+      j => \&j,
+      l => sub { Mojo::URL->new( @_ ) },
+      n => sub (&@) { say STDERR timestr timeit( $_[1] // 1, $_[0] ) },
+      o => sub { $ua->options( @_ )->result },
+      p => sub { $ua->post( @_ )->result },
+      r => \&dumper,
+      t => sub { $ua->patch( @_ )->result },
+      u => sub { $ua->put( @_ )->result },
+      x => sub { Mojo::DOM->new( @_ ) };
 }
 
 1;
