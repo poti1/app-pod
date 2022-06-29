@@ -4,6 +4,7 @@ use 5.006;
 use strict;
 use warnings;
 use Module::Build;
+use File::Spec::Functions qw( catfile );
 Module::Build->VERSION( '0.4004' );
 
 my $class = Module::Build->subclass(
@@ -73,7 +74,12 @@ my $builder = $class->new(
         'Mojo::JSON'        => '0',
         'Pod::Query'        => '0.25',
     },
-    add_to_cleanup => [ 'App-Pod-*', "$ENV{HOME}/.cache/my_pod*.cache", ],
+    add_to_cleanup => [
+        'App-Pod-*',
+        sprintf( "%s/.cache/my_pod*.cache",
+            $ENV{HOME} // $ENV{USEPROFILE}
+              // catfile( $ENV{HOMEDRIVE}, $ENV{HOMEPATH}, '' ) ),
+    ],
 );
 
 $builder->create_build_script();
