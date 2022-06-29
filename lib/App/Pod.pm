@@ -232,7 +232,7 @@ sub _init {
     $self->_dirty_cache( 1 ) if $o->{flush_cache};
 
     # Not sure how to handle colors in windows.
-    $self->_no_colors() if os_type eq "Windows";
+    $self->_no_colors() if $self->_opts->{no_colors} or os_type eq "Windows";
 }
 
 sub _no_colors {
@@ -331,6 +331,10 @@ sub _define_spec {
             description => "Show all class functions.",
         },
         {
+            spec        => "no_colors",
+            description => "Do not output colors.",
+        },
+        {
             spec        => "no_error",
             description => "Suppress some error message.",
         },
@@ -338,7 +342,6 @@ sub _define_spec {
             spec        => "flush_cache|f",
             description => "Flush cache file(s).",
         },
-
     );
 
     # Add the name.
@@ -1122,15 +1125,30 @@ sub _trim {
     my $term_width  = Pod::Query::get_term_width();
     my $replacement = " ...";
     my $width = $term_width - length( $replacement ) - 1;    # "-1" for newline
+        # say "term_width=$term_width";
+        # say "replacement=$replacement";
+        # say "width=$width";
 
     # Trim to terminal width
     my $colored_length   = length( $line );
     my $uncolored_length = length( colorstrip( $line ) );
     my $diff_length      = $colored_length - $uncolored_length;
+
+    # say "colored_length=$colored_length";
+    # say "uncolored_length=$uncolored_length";
+    # say "diff_length=$diff_length";
+
+    # Subtract the color escape code.
     $diff_length = $diff_length - 3 if $diff_length;
 
+    # say "diff_length=$diff_length";
+
+    # Trim the line.
     if ( $uncolored_length >= $term_width ) {    # "=" also for newline
+                                                 #     say "line1=[$line]";
         $line = substr( $line, 0, $width + $diff_length ) . $replacement;
+
+        #     say "line2=[$line]";
     }
 
     $line;
