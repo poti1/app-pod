@@ -983,15 +983,18 @@ sub show_methods {
 
     my @methods =
       $self->_opts->{all} ? @$all_method_names_and_docs : @all_method_docs;
-    my $max    = max 0, map { length _green( $_->[0] ) } @methods;
-    my $format = " %-${max}s%s";
-    my $size   = @methods;
+    my $max              = max 0, map { length _green( $_->[0] ) } @methods;
+    my $format_with_desc = " %-${max}s%s";
+    my $format_no_desc   = " %s%s";
+    my $size             = @methods;
     say _neon( "Methods ($size):" );
 
     for my $list ( @methods ) {
         my ( $method, $doc_raw ) = @$list;
         my $doc = $doc_raw ? " - $doc_raw" : "";
         $doc =~ s/\n+/ /g;
+
+        my $format = $doc_raw ? $format_with_desc : $format_no_desc;
         _sayt sprintf $format, _green( $method ), _grey( $doc );
     }
 
