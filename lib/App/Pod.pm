@@ -105,7 +105,7 @@ sub _has {
             return $_[0]{$attr} if @_ == 1;    # Get: return $self-<{$attr}
             $_[0]{$attr} = $_[1];              # Set: $self->{$attr} = $val
             $_[0];                             # return $self
-        };
+        } if not defined &$attr;
     }
 }
 
