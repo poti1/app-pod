@@ -1135,8 +1135,7 @@ sub trim {
     state $data_or_escape = qr{ (?<data>$data) | (?<esc>$esc) }x;
     state $term_width     = Pod::Query::get_term_width();
     state $replacement    = " ...";
-    state $newline_len    = 1;
-    state $width_raw      = $term_width - $newline_len - length( $replacement );
+    state $width_raw      = $term_width - length( $replacement );
     state $base_width = $width_raw >= 0 ? $width_raw : 0;  # To avoid negatives.
 
     # Figure out the total len of the line (uncolored).
@@ -1149,7 +1148,7 @@ sub trim {
     }
 
     # No need to trim.
-    return $line if $total_chars < $term_width;
+    return $line if $total_chars <= $term_width;
 
     # Need to trim.
     my @parts;
@@ -1183,7 +1182,7 @@ sub trim {
         push @parts, $part->{data};
     }
 
-    join "", @parts, "+";
+    join "", @parts;
 }
 
 sub _sayt {
