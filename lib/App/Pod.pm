@@ -529,7 +529,7 @@ sub _abort {
     }
 
     # No wierd class names.
-    if ( $class !~ m{ ^ [-\w_:/. ]+ $ }x ) {
+    if ( $class !~ m{ ^ [-\w_:\\/. ]+ $ }x ) {
         if ( not $self->_opts->{no_error} ) {
             say "";
             say _red( "Invalid class name: $class" );
