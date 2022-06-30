@@ -68,11 +68,12 @@ my $builder = $class->new(
         'Test::More' => '0',
     },
     requires => {
+        'perl'              => '5.024',
         'Module::Functions' => '2.1.3',
         'File::HomeDir'     => '1.006',
         'Mojo::File'        => '0',
         'Mojo::JSON'        => '0',
-        'Pod::Query'        => '0.31',
+        'Pod::Query'        => '0.32',
     },
     add_to_cleanup => [
         'App-Pod-*',
