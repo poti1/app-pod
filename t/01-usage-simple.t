@@ -4,9 +4,9 @@ use strict;
 use warnings;
 use Test::More tests => 34;
 use Term::ANSIColor       qw( colorstrip );
-use File::Spec::Functions qw( catfile );
+use File::Spec::Functions qw( catfile catdir );
 use FindBin               qw( $RealDir );
-use lib catfile( $RealDir, "cpan" );
+use lib catdir( $RealDir, "cpan" );
 
 sub _dumper {
     require Data::Dumper;
