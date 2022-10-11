@@ -92,5 +92,8 @@
 # Avoid archives of this distribution
 \bApp-Pod-[\d\.\_]+
 
-TODO
-old/.*
+# Avoid TODO
+\bTODO$
+
+# Avoid git flow
+/.github/workflows/ci\.yml$
