@@ -97,3 +97,6 @@
 
 # Avoid git flow
 /.github/workflows/ci\.yml$
+
+# Legacy
+\bold/
