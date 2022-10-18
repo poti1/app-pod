@@ -30,11 +30,11 @@ App::Pod - Quickly show available class methods and documentation.
 
 =head1 VERSION
 
-Version 0.29
+Version 0.30
 
 =cut
 
-our $VERSION = '0.29';
+our $VERSION = '0.30';
 
 
 =head1 SYNOPSIS
@@ -411,7 +411,7 @@ sub _show_help {
 }
 
 sub _define_help_template {
-    <<~HELP;
+    <<~"HELP";
 
     ##_neon:Syntax:
       <SCRIPT> module_name [method_name] [options]
