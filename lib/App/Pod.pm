@@ -10,13 +10,13 @@ use Module::Functions     qw( get_full_functions );
 use File::HomeDir         qw( home );
 use File::Basename        qw( basename );
 use File::Spec::Functions qw( catfile  );
-use List::Util            qw( first max uniq );
+use List::Util            qw( first max );
 use Mojo::File            qw( path );
 use Mojo::JSON            qw( j );
 use Perl::OSType          qw( os_type );
 use Term::ANSIColor       qw( colored );
 use Carp                  qw( cluck );
-use subs                  qw( _sayt );
+use subs                  qw( _sayt uniq );
 
 # Catch eval warnings better.
 $SIG{__WARN__} = sub { cluck shift };
@@ -152,6 +152,10 @@ sub _dumper {
     say $data;
 }
 
+#
+# Run
+#
+
 =head2 run
 
 Run the main program.
@@ -164,10 +168,6 @@ Or just use the included script:
     % pod
 
 =cut
-
-#
-# Run
-#
 
 sub run {
     my $self = __PACKAGE__->_new;
@@ -1289,6 +1289,15 @@ sub _neon {
 sub _reset {
 
     colored( "@_", "RESET" );
+}
+
+#
+# Misc Support
+#
+
+sub uniq(@) {
+    my %h;
+    grep { not $h{$_}++ } @_;
 }
 
 #
