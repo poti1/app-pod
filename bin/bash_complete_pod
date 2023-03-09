@@ -3,9 +3,6 @@
 export MY_CACHE_DIR="$HOME/.cache"
 export MY_POD_CACHE="$MY_CACHE_DIR/my_pod_clases.cache"
 
-# Colon should not be a word break in perl.
-export COMP_WORDBREAKS=${COMP_WORDBREAKS//:}
-
 _tab__pod_make_class_cache(){
    _tab__pod_get_modules_list  > "$MY_POD_CACHE"
    pod --tool_options         >> "$MY_POD_CACHE"
@@ -60,36 +57,29 @@ _tab__pod_get_command(){
 }
 
 _tab__pod(){
+   local cur prev words cword _possible
+   _init_completion -n : || return
+
    if [ ! -e "$MY_POD_CACHE" ]; then
       _tab__pod_make_class_cache
    fi
 
-   local prev="${COMP_WORDS[COMP_CWORD-1]}"
-   local cur="${COMP_WORDS[COMP_CWORD]}"
-
    if [[ $cur =~ ^- ]]; then                    # Option
-       words=$(pod --tool_options)
+       _possible=$(pod --tool_options)
    elif [[ "$prev" =~ ^-+q(uery)?$ ]]; then     # --query
        return                                   # Since it can be anything.
    else
        # Filter out script name, options, and query value.
        # Then count how many arguments remain.
-       local command=$(_tab__pod_get_command "${COMP_WORDS[@]}")
-       words=$(eval "$command")
+       local command=$(_tab__pod_get_command "${words[@]}")
+       _possible=$(eval "$command")
        compopt -o nospace                       # No space afterwards.
    fi
 
-   COMPREPLY=( $(compgen -W "${words[@]}" -- "$cur") )
+   COMPREPLY=($(compgen -W "$_possible" -- $cur))
 
- # echo
- # echo "COMP_WORDS    = [${#COMP_WORDS[@]}] [${COMP_WORDS[*]}]"
- # echo "COMP_CWORD    = [$COMP_CWORD]"
- # echo "prev          = [$prev]"
- # echo "cur           = [$cur]"
- # echo "args_cnt      = [$args_cnt]"
- # echo "COMP_LINE     = [$COMP_LINE]"
- # echo "COMPREPLY     = [${COMPREPLY[@]}]"
- # echo
+   # Remove colon contain prefix from COMPREPLY
+   __ltrim_colon_completions "$cur"
 }
 
 complete -F _tab__pod pod
