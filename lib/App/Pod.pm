@@ -1342,7 +1342,7 @@ Install bash completion support.
 
 Install tab completion.
 
- % source bashrc_pod
+ % source bash_completion_pod
 
 =head1 SEE ALSO
 
