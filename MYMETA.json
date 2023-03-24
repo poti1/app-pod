@@ -53,6 +53,6 @@
          "url" : "https://github.com/poti1/app-pod"
       }
    },
-   "version" : "0.30",
+   "version" : "0.34",
    "x_serialization_backend" : "JSON::PP version 4.07"
 }
