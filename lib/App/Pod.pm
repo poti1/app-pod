@@ -22,7 +22,7 @@ use subs                  qw( _sayt uniq );
 # Catch eval warnings better.
 $SIG{__WARN__} = sub { cluck shift };
 
-=head1 NAME
+=head1 LOGO
 
  ~                      __ ~
  ~     ____  ____  ____/ / ~
@@ -31,11 +31,13 @@ $SIG{__WARN__} = sub { cluck shift };
  ~  / .___/\____/\__,_/    ~
  ~ /_/                     ~
 
+=head1 NAME
+
 App::Pod - Quickly show available class methods and documentation.
 
 =cut
 
-our $VERSION = '0.33';
+our $VERSION = '0.34';
 
 
 =head1 SYNOPSIS
