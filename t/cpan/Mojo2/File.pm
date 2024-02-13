@@ -1,173 +1,182 @@
-package Mojo::File;
+package Mojo2::File;
 use Mojo::Base -strict;
-use overload '@{}' => sub { shift->to_array }, bool => sub {1}, '""' => sub { ${$_[0]} }, fallback => 1;
+use overload
+  '@{}'    => sub { shift->to_array },
+  bool     => sub { 1 },
+  '""'     => sub { ${ $_[0] } },
+  fallback => 1;
 
-use Carp qw(croak);
-use Cwd qw(getcwd);
-use Exporter qw(import);
+use Carp           qw(croak);
+use Cwd            qw(getcwd);
+use Exporter       qw(import);
 use File::Basename ();
-use File::Copy qw(copy move);
-use File::Find qw(find);
-use File::Path ();
-use File::Spec::Functions qw(abs2rel canonpath catfile file_name_is_absolute rel2abs splitdir);
+use File::Copy     qw(copy move);
+use File::Find     qw(find);
+use File::Path     ();
+use File::Spec::Functions
+  qw(abs2rel canonpath catfile file_name_is_absolute rel2abs splitdir);
 use File::stat ();
 use File::Temp ();
 use IO::File   ();
 use Mojo::Collection;
 
-our @EXPORT_OK = ('curfile', 'path', 'tempdir', 'tempfile');
+our @EXPORT_OK = ( 'curfile', 'path', 'tempdir', 'tempfile' );
 
-sub basename { File::Basename::basename ${shift()}, @_ }
+sub basename { File::Basename::basename ${ shift() }, @_ }
 
-sub child { $_[0]->new(${shift()}, @_) }
+sub child { $_[0]->new( ${ shift() }, @_ ) }
 
 sub chmod {
-  my ($self, $mode) = @_;
-  chmod $mode, $$self or croak qq{Can't chmod file "$$self": $!};
-  return $self;
+    my ( $self, $mode ) = @_;
+    chmod $mode, $$self or croak qq{Can't chmod file "$$self": $!};
+    return $self;
 }
 
 sub copy_to {
-  my ($self, $to) = @_;
-  copy($$self, $to) or croak qq{Can't copy file "$$self" to "$to": $!};
-  return $self->new(-d $to ? ($to, File::Basename::basename $self) : $to);
+    my ( $self, $to ) = @_;
+    copy( $$self, $to ) or croak qq{Can't copy file "$$self" to "$to": $!};
+    return $self->new( -d $to ? ( $to, File::Basename::basename $self) : $to );
 }
 
-sub curfile { __PACKAGE__->new(Cwd::realpath((caller)[1])) }
+sub curfile { __PACKAGE__->new( Cwd::realpath( ( caller )[1] ) ) }
 
-sub dirname { $_[0]->new(scalar File::Basename::dirname ${$_[0]}) }
+sub dirname { $_[0]->new( scalar File::Basename::dirname ${ $_[0] } ) }
 
 sub extname { shift->basename =~ /.+\.([^.]+)$/ ? $1 : '' }
 
-sub is_abs { file_name_is_absolute ${shift()} }
+sub is_abs { file_name_is_absolute ${ shift() } }
 
 sub list {
-  my ($self, $options) = (shift, shift // {});
+    my ( $self, $options ) = ( shift, shift // {} );
 
-  return Mojo::Collection->new unless -d $$self;
-  opendir(my $dir, $$self) or croak qq{Can't open directory "$$self": $!};
-  my @files = grep { $_ ne '.' && $_ ne '..' } readdir $dir;
-  @files = grep { !/^\./ } @files unless $options->{hidden};
-  @files = map  { catfile $$self, $_ } @files;
-  @files = grep { !-d } @files unless $options->{dir};
+    return Mojo::Collection->new unless -d $$self;
+    opendir( my $dir, $$self ) or croak qq{Can't open directory "$$self": $!};
+    my @files = grep { $_ ne '.' && $_ ne '..' } readdir $dir;
+    @files = grep { !/^\./ } @files unless $options->{hidden};
+    @files = map  { catfile $$self, $_ } @files;
+    @files = grep { !-d } @files unless $options->{dir};
 
-  return Mojo::Collection->new(map { $self->new($_) } sort @files);
+    return Mojo::Collection->new( map { $self->new( $_ ) } sort @files );
 }
 
 sub list_tree {
-  my ($self, $options) = (shift, shift // {});
+    my ( $self, $options ) = ( shift, shift // {} );
 
-  # This may break in the future, but is worth it for performance
-  local $File::Find::skip_pattern = qr/^\./ unless $options->{hidden};
+    # This may break in the future, but is worth it for performance
+    local $File::Find::skip_pattern = qr/^\./ unless $options->{hidden};
 
-  # The File::Find documentation lies, this is needed for CIFS
-  local $File::Find::dont_use_nlink = 1 if $options->{dont_use_nlink};
+    # The File::Find documentation lies, this is needed for CIFS
+    local $File::Find::dont_use_nlink = 1 if $options->{dont_use_nlink};
 
-  my %all;
-  my $wanted = sub {
-    if ($options->{max_depth}) {
-      (my $rel = $File::Find::name) =~ s!^\Q$$self\E/?!!;
-      $File::Find::prune = 1 if splitdir($rel) >= $options->{max_depth};
-    }
-    $all{$File::Find::name}++ if $options->{dir} || !-d $File::Find::name;
-  };
-  find {wanted => $wanted, no_chdir => 1}, $$self if -d $$self;
-  delete $all{$$self};
+    my %all;
+    my $wanted = sub {
+        if ( $options->{max_depth} ) {
+            ( my $rel = $File::Find::name ) =~ s!^\Q$$self\E/?!!;
+            $File::Find::prune = 1 if splitdir( $rel ) >= $options->{max_depth};
+        }
+        $all{$File::Find::name}++ if $options->{dir} || !-d $File::Find::name;
+    };
+    find { wanted => $wanted, no_chdir => 1 }, $$self if -d $$self;
+    delete $all{$$self};
 
-  return Mojo::Collection->new(map { $self->new(canonpath $_) } sort keys %all);
+    return Mojo::Collection->new( map { $self->new( canonpath $_) }
+          sort keys %all );
 }
 
-sub lstat { File::stat::lstat(${shift()}) }
+sub lstat { File::stat::lstat( ${ shift() } ) }
 
 sub make_path {
-  my $self = shift;
-  File::Path::make_path $$self, @_;
-  return $self;
+    my $self = shift;
+    File::Path::make_path $$self, @_;
+    return $self;
 }
 
 sub move_to {
-  my ($self, $to) = @_;
-  move($$self, $to) or croak qq{Can't move file "$$self" to "$to": $!};
-  return $self->new(-d $to ? ($to, File::Basename::basename $self) : $to);
+    my ( $self, $to ) = @_;
+    move( $$self, $to ) or croak qq{Can't move file "$$self" to "$to": $!};
+    return $self->new( -d $to ? ( $to, File::Basename::basename $self) : $to );
 }
 
 sub new {
-  my $class = shift;
-  croak 'Invalid path' if grep { !defined } @_;
-  my $value = @_ == 1 ? $_[0] : @_ > 1 ? catfile @_ : canonpath getcwd;
-  return bless \$value, ref $class || $class;
+    my $class = shift;
+    croak 'Invalid path' if grep { !defined } @_;
+    my $value = @_ == 1 ? $_[0] : @_ > 1 ? catfile @_ : canonpath getcwd;
+    return bless \$value, ref $class || $class;
 }
 
 sub open {
-  my $self   = shift;
-  my $handle = IO::File->new;
-  $handle->open($$self, @_) or croak qq{Can't open file "$$self": $!};
-  return $handle;
+    my $self   = shift;
+    my $handle = IO::File->new;
+    $handle->open( $$self, @_ ) or croak qq{Can't open file "$$self": $!};
+    return $handle;
 }
 
-sub path { __PACKAGE__->new(@_) }
+sub path { __PACKAGE__->new( @_ ) }
 
-sub realpath { $_[0]->new(Cwd::realpath ${$_[0]}) }
+sub realpath { $_[0]->new( Cwd::realpath ${ $_[0] } ) }
 
 sub remove {
-  my ($self, $mode) = @_;
-  unlink $$self or croak qq{Can't remove file "$$self": $!} if -e $$self;
-  return $self;
+    my ( $self, $mode ) = @_;
+    unlink $$self or croak qq{Can't remove file "$$self": $!} if -e $$self;
+    return $self;
 }
 
 sub remove_tree {
-  my $self = shift;
-  File::Path::remove_tree $$self, @_;
-  return $self;
+    my $self = shift;
+    File::Path::remove_tree $$self, @_;
+    return $self;
 }
 
 sub sibling {
-  my $self = shift;
-  return $self->new(scalar File::Basename::dirname($self), @_);
+    my $self = shift;
+    return $self->new( scalar File::Basename::dirname( $self ), @_ );
 }
 
 sub slurp {
-  my $self = shift;
+    my $self = shift;
 
-  CORE::open my $file, '<', $$self or croak qq{Can't open file "$$self": $!};
-  my $ret = my $content = '';
-  while ($ret = $file->sysread(my $buffer, 131072, 0)) { $content .= $buffer }
-  croak qq{Can't read from file "$$self": $!} unless defined $ret;
+    CORE::open my $file, '<', $$self or croak qq{Can't open file "$$self": $!};
+    my $ret = my $content = '';
+    while ( $ret = $file->sysread( my $buffer, 131072, 0 ) ) {
+        $content .= $buffer;
+    }
+    croak qq{Can't read from file "$$self": $!} unless defined $ret;
 
-  return $content;
+    return $content;
 }
 
 sub spurt {
-  my ($self, $content) = (shift, join '', @_);
-  CORE::open my $file, '>', $$self or croak qq{Can't open file "$$self": $!};
-  ($file->syswrite($content) // -1) == length $content or croak qq{Can't write to file "$$self": $!};
-  return $self;
+    my ( $self, $content ) = ( shift, join '', @_ );
+    CORE::open my $file, '>', $$self or croak qq{Can't open file "$$self": $!};
+    ( $file->syswrite( $content ) // -1 ) == length $content
+      or croak qq{Can't write to file "$$self": $!};
+    return $self;
 }
 
-sub stat { File::stat::stat(${shift()}) }
+sub stat { File::stat::stat( ${ shift() } ) }
 
-sub tap { shift->Mojo::Base::tap(@_) }
+sub tap { shift->Mojo::Base::tap( @_ ) }
 
-sub tempdir { __PACKAGE__->new(File::Temp->newdir(@_)) }
+sub tempdir { __PACKAGE__->new( File::Temp->newdir( @_ ) ) }
 
-sub tempfile { __PACKAGE__->new(File::Temp->new(@_)) }
+sub tempfile { __PACKAGE__->new( File::Temp->new( @_ ) ) }
 
-sub to_abs { $_[0]->new(rel2abs ${$_[0]}) }
+sub to_abs { $_[0]->new( rel2abs ${ $_[0] } ) }
 
-sub to_array { [splitdir ${shift()}] }
+sub to_array { [ splitdir ${ shift() } ] }
 
-sub to_rel { $_[0]->new(abs2rel(${$_[0]}, $_[1])) }
+sub to_rel { $_[0]->new( abs2rel( ${ $_[0] }, $_[1] ) ) }
 
-sub to_string {"${$_[0]}"}
+sub to_string { "${$_[0]}" }
 
 sub touch {
-  my $self = shift;
-  $self->open('>') unless -e $$self;
-  utime undef, undef, $$self or croak qq{Can't touch file "$$self": $!};
-  return $self;
+    my $self = shift;
+    $self->open( '>' ) unless -e $$self;
+    utime undef, undef, $$self or croak qq{Can't touch file "$$self": $!};
+    return $self;
 }
 
-sub with_roles { shift->Mojo::Base::with_roles(@_) }
+sub with_roles { shift->Mojo::Base::with_roles( @_ ) }
 
 1;
 

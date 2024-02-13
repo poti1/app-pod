@@ -1,4 +1,4 @@
-package Mojo::UserAgent;
+package Mojo2::UserAgent;
 use Mojo::Base 'Mojo::EventEmitter';
 
 # "Fry: Since when is the Internet about robbing people of their privacy?
