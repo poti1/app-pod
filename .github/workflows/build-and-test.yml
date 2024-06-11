@@ -61,6 +61,7 @@ jobs:
           - "5.34"
           - "5.36"
           - "5.38"
+          - "5.40"
         exclude:
           - { os: windows-latest, distribution: default }
           - { os: macos-latest,   distribution: strawberry }
