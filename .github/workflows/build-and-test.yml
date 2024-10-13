@@ -4,10 +4,12 @@ name: build and test
 on:
   push:
     branches:
-      - "*"
+      - "main"
+      - "test"
   pull_request:
     branches:
-      - "*"
+      - "main"
+      - "test"
   workflow_dispatch:
 
 jobs:
